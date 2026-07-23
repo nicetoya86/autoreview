@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { ENGINE_VERSION } from '../src/index';
+import { judgeReview } from '../src/index';
 
 describe('smoke', () => {
-  it('exposes a version string', () => {
-    expect(ENGINE_VERSION).toBe('0.1.0');
+  it('exposes the package public entry point', () => {
+    expect(typeof judgeReview).toBe('function');
   });
 });
