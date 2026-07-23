@@ -130,4 +130,24 @@ describe('buildResultFromAi', () => {
     expect(result.photo_results).toEqual([{ url: 'https://x/1.jpg', decision: 'APPROVED' }]);
     expect(result.confidence).toBe(0.9); // NOT dragged down to 0.1 by the phantom entry
   });
+
+  it('매칭됐지만 HIDDEN 처리된 사진의 confidence도 전체 결과에 반영됨', () => {
+    const input = inputWithPhotos(['https://x/1.jpg', 'https://x/2.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        { url: 'https://x/2.jpg', relevant: false, identifiable: true, flag: 'irrelevant', confidence: 0.3 },
+      ],
+      confidence: 0.9,
+      reasoning: 'photo2는 시술과 무관하지만 낮은 확신도로 판단됨',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.photo_results).toEqual([
+      { url: 'https://x/1.jpg', decision: 'APPROVED' },
+      { url: 'https://x/2.jpg', decision: 'HIDDEN', reason: 'irrelevant' },
+    ]);
+    expect(result.confidence).toBe(0.3); // hidden photo's low confidence still pulls down the overall result
+  });
 });

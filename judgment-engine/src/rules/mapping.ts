@@ -19,6 +19,9 @@ export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): Ju
       });
     } else {
       photo_results.push({ url: photo.url, decision: 'APPROVED' });
+    }
+    // Collect confidence from any matched photo (judged is truthy), regardless of APPROVED/HIDDEN decision
+    if (judged) {
       photoConfidences.push(judged.confidence);
     }
   });
