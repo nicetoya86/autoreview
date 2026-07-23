@@ -150,4 +150,18 @@ describe('buildResultFromAi', () => {
     ]);
     expect(result.confidence).toBe(0.3); // hidden photo's low confidence still pulls down the overall result
   });
+
+  it('사진은 승인 가능해도 텍스트가 의미불명(meaningless)이면 AUTO_HOLD_CANDIDATE', () => {
+    const input = inputWithPhotos(['https://x/1.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: 'meaningless',
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: '후기 내용이 의미를 알 수 없음',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('AUTO_HOLD_CANDIDATE');
+    expect(result.photo_results).toEqual([{ url: 'https://x/1.jpg', decision: 'APPROVED' }]);
+  });
 });
