@@ -1,0 +1,17 @@
+{
+  "name": "judgment-engine-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0"
+  },
+  "devDependencies": {
+    "@vercel/node": "^3.2.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}
