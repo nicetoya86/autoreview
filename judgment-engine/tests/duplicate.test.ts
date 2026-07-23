@@ -113,4 +113,25 @@ describe('isDuplicate', () => {
     });
     expect(isDuplicate(input)).toBe(false);
   });
+
+  it('CONSULTATION: 시술이벤트가 있는데 다르면 false (일반 AND 경로)', () => {
+    const input = baseInput({
+      review_type: 'CONSULTATION',
+      duplicate_flags: {
+        same_customer: true,
+        same_written_at: true,
+        same_procedure_event: false,
+        procedure_event_exists: true,
+        same_content: true,
+        same_photo: true,
+        same_receipt: false,
+      },
+    });
+    expect(isDuplicate(input)).toBe(false);
+  });
+
+  it('알 수 없는 review_type이면 false (방어적 기본값)', () => {
+    const input = baseInput({ review_type: 'UNKNOWN' as any });
+    expect(isDuplicate(input)).toBe(false);
+  });
 });
