@@ -49,6 +49,45 @@ describe('judgeContentWithAi', () => {
     ).rejects.toThrow('invalid AI response shape');
   });
 
+  it('content_flag이 유효하지 않으면 에러를 던짐', async () => {
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: 'spam', // invalid: must be 'meaningless', 'public_order', or null
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: 'ok',
+    };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => fakeResponse,
+    } as unknown as Response);
+
+    await expect(
+      judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content' })
+    ).rejects.toThrow('invalid AI response shape');
+  });
+
+  it('photos 배열에 malformed 요소가 있으면 에러를 던짐', async () => {
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        { url: 'https://x/2.jpg', relevant: false, flag: 'invalid-flag', confidence: 0.5 }, // missing 'identifiable' and invalid 'flag'
+      ],
+      confidence: 0.9,
+      reasoning: 'ok',
+    };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => fakeResponse,
+    } as unknown as Response);
+
+    await expect(
+      judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content' })
+    ).rejects.toThrow('invalid AI response shape');
+  });
+
   it('POST 요청 본문에서 before_after_slot을 제거하고 전송', async () => {
     const inputWithBeforeAfter = {
       review_type: 'TICKET_USE' as const,
