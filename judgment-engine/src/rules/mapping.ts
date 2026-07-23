@@ -6,16 +6,21 @@ import type { AiContentJudgment, JudgmentResult, PhotoResult, ReviewInput } from
  * 최종 분류 규칙은 여기(코드)에서 결정한다 (스펙 §5.1).
  */
 export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): JudgmentResult {
-  const photo_results: PhotoResult[] = input.photos.map((photo) => {
+  const photo_results: PhotoResult[] = [];
+  const photoConfidences: number[] = [];
+
+  input.photos.forEach((photo) => {
     const judged = ai.photos.find((p) => p.url === photo.url);
     if (!judged || !judged.relevant || !judged.identifiable || judged.flag) {
-      return {
+      photo_results.push({
         url: photo.url,
         decision: 'HIDDEN',
         reason: judged?.flag ?? 'irrelevant',
-      };
+      });
+    } else {
+      photo_results.push({ url: photo.url, decision: 'APPROVED' });
+      photoConfidences.push(judged.confidence);
     }
-    return { url: photo.url, decision: 'APPROVED' };
   });
 
   const hasPublicOrderPhoto = photo_results.some((p) => p.decision === 'HIDDEN' && p.reason === 'public_order');
@@ -38,7 +43,6 @@ export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): Ju
     mock_judgment = 'APPROVE_CANDIDATE';
   }
 
-  const photoConfidences = ai.photos.map((p) => p.confidence);
   const confidence = Math.min(ai.confidence, ...(photoConfidences.length ? photoConfidences : [1]));
 
   return {

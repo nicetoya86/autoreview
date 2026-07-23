@@ -96,4 +96,38 @@ describe('buildResultFromAi', () => {
     const result = buildResultFromAi(input, ai);
     expect(result.mock_judgment).toBe('NEEDS_REVIEW');
   });
+
+  it('input에 있는 사진이 AI 응답에 없으면 HIDDEN/irrelevant로 처리하고 confidence에 영향 없음', () => {
+    const input = inputWithPhotos(['https://x/1.jpg', 'https://x/2.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: 'photo2는 AI가 판단하지 않음',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.photo_results).toEqual([
+      { url: 'https://x/1.jpg', decision: 'APPROVED' },
+      { url: 'https://x/2.jpg', decision: 'HIDDEN', reason: 'irrelevant' },
+    ]);
+    expect(result.confidence).toBe(0.9);
+  });
+
+  it('AI 응답에 input에 없는 phantom 사진이 있어도 confidence에 영향 없음', () => {
+    const input = inputWithPhotos(['https://x/1.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        { url: 'https://x/phantom.jpg', relevant: false, identifiable: true, flag: 'irrelevant', confidence: 0.1 },
+      ],
+      confidence: 0.9,
+      reasoning: 'phantom 항목 포함',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.photo_results).toEqual([{ url: 'https://x/1.jpg', decision: 'APPROVED' }]);
+    expect(result.confidence).toBe(0.9); // NOT dragged down to 0.1 by the phantom entry
+  });
 });
