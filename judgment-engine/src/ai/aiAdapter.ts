@@ -50,5 +50,24 @@ function validateAiResponse(data: unknown): AiContentJudgment {
   ) {
     throw new Error('invalid AI response shape');
   }
+
+  // Validate content_flag: must be explicitly 'meaningless', 'public_order', or null
+  if (d.content_flag !== 'meaningless' && d.content_flag !== 'public_order' && d.content_flag !== null) {
+    throw new Error('invalid AI response shape');
+  }
+
+  // Validate photos array: each element must have required fields with correct types
+  for (const photo of d.photos) {
+    if (
+      typeof photo.url !== 'string' ||
+      typeof photo.relevant !== 'boolean' ||
+      typeof photo.identifiable !== 'boolean' ||
+      typeof photo.confidence !== 'number' ||
+      (photo.flag !== 'unidentifiable' && photo.flag !== 'public_order' && photo.flag !== 'irrelevant' && photo.flag !== null)
+    ) {
+      throw new Error('invalid AI response shape');
+    }
+  }
+
   return d as AiContentJudgment;
 }
