@@ -66,4 +66,22 @@ describe('judgeReview', () => {
     expect(result.confidence).toBe(0);
     expect(result.photo_results).toEqual([{ url: 'https://x/1.jpg', decision: 'HIDDEN', reason: 'ai_error' }]);
   });
+
+  it('객관적 규칙 확정 경로에서 photos가 손상되어도 예외 대신 NEEDS_REVIEW를 반환', async () => {
+    global.fetch = vi.fn();
+    // hospital_requested_takedown: true → runObjectiveRules가 decided:true를 반환하고,
+    // 정상 경로라면 input.photos.map(...)이 실행된다. photos를 null로 손상시켜
+    // (브라우저 확장이 런타임 타입과 다른 값을 넘기는 상황을 모사) 그 .map() 호출이
+    // 예외를 던지는지, 그리고 그 예외가 top-level try/catch로 안전하게 흡수되는지 확인한다.
+    const input = baseInput({ hospital_requested_takedown: true, photos: null as any });
+
+    const result = await judgeReview(input, { proxyUrl: 'https://proxy.example/api/judge-content' });
+
+    expect(result.mock_judgment).toBe('NEEDS_REVIEW');
+    expect(result.matched_rules).toEqual(['ai-error']);
+    expect(result.confidence).toBe(0);
+    expect(result.ai_invoked).toBe(true);
+    expect(result.photo_results).toEqual([]);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 });
