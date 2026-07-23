@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { checkReceiptObjective } from '../src/rules/receipt';
-import type { ReviewInput } from '../types';
+import type { ReviewInput } from '../src/types';
 
 function receiptInput(receipt: Partial<NonNullable<ReviewInput['receipt']>>): ReviewInput {
   return {
