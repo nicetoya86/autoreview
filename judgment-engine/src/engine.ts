@@ -8,8 +8,10 @@ import { judgeContentWithAi, type AiAdapterConfig } from './ai/aiAdapter';
  * (스펙 §5.2 "안전한 쪽(검토필요)으로 떨어뜨린다").
  */
 export async function judgeReview(input: ReviewInput, aiConfig: AiAdapterConfig): Promise<JudgmentResult> {
+  let objective: ReturnType<typeof runObjectiveRules>;
+
   try {
-    const objective = runObjectiveRules(input);
+    objective = runObjectiveRules(input);
 
     if (objective.decided) {
       const decision = objective.mock_judgment === 'APPROVE_CANDIDATE' ? 'APPROVED' : 'HIDDEN';
@@ -23,7 +25,23 @@ export async function judgeReview(input: ReviewInput, aiConfig: AiAdapterConfig)
         photo_results: input.photos.map((p) => ({ url: p.url, decision })),
       };
     }
+  } catch {
+    // runObjectiveRules 자체 또는 decided:true 분기의 photo-mapping이 실패한 경우.
+    // AI는 아직 호출되지 않았으므로 ai_invoked: false와 그에 걸맞은 원인 라벨을 남긴다.
+    return {
+      review_id: input?.review_id,
+      mock_judgment: 'NEEDS_REVIEW',
+      matched_rules: ['objective-rules-error'],
+      confidence: 0,
+      reasoning: '객관적 규칙 판단/입력값 검증 실패 — 검수자 직접 확인 필요',
+      ai_invoked: false,
+      photo_results: Array.isArray(input?.photos)
+        ? input.photos.map((p) => ({ url: p?.url, decision: 'HIDDEN', reason: 'objective-rules-error' }))
+        : [],
+    };
+  }
 
+  try {
     const ai = await judgeContentWithAi(input, aiConfig);
     return buildResultFromAi(input, ai);
   } catch {
