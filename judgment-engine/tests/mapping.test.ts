@@ -151,6 +151,25 @@ describe('buildResultFromAi', () => {
     expect(result.confidence).toBe(0.3); // hidden photo's low confidence still pulls down the overall result
   });
 
+  it('AI가 입력 URL과 다른 문자열을 photos[].url로 반환해도 순서 기준으로 매칭한다 (실제 Gemini 관찰 사례)', () => {
+    const input = inputWithPhotos(['https://x/1.jpg', 'https://x/2.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: 'image_1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.95 },
+        { url: 'image_2.jpg', relevant: false, identifiable: true, flag: 'irrelevant', confidence: 0.9 },
+      ],
+      confidence: 0.95,
+      reasoning: 'AI가 원본 URL을 그대로 반환하지 않고 자체 라벨을 붙임',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.photo_results).toEqual([
+      { url: 'https://x/1.jpg', decision: 'APPROVED' },
+      { url: 'https://x/2.jpg', decision: 'HIDDEN', reason: 'irrelevant' },
+    ]);
+  });
+
   it('사진은 승인 가능해도 텍스트가 의미불명(meaningless)이면 AUTO_HOLD_CANDIDATE', () => {
     const input = inputWithPhotos(['https://x/1.jpg']);
     const ai: AiContentJudgment = {

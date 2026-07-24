@@ -9,8 +9,11 @@ export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): Ju
   const photo_results: PhotoResult[] = [];
   const photoConfidences: number[] = [];
 
-  input.photos.forEach((photo) => {
-    const judged = ai.photos.find((p) => p.url === photo.url);
+  input.photos.forEach((photo, index) => {
+    // AI가 입력 URL 문자열을 그대로 반환한다고 보장할 수 없으므로(Gemini 스모크 테스트에서
+    // "image_1.jpg" 같은 자체 라벨을 반환하는 사례 관찰), url 동등 비교 대신 프롬프트가
+    // 보장하는 배열 순서(index)로 매칭한다.
+    const judged = ai.photos[index];
     if (!judged || !judged.relevant || !judged.identifiable || judged.flag) {
       photo_results.push({
         url: photo.url,
