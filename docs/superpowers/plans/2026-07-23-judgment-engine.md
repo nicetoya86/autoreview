@@ -17,6 +17,8 @@
 - 테스트는 Vitest로 작성하고, AI 호출이 필요한 경로는 실제 네트워크 호출 없이 mock으로 검증한다 (스펙 §6).
 - 출력 타입(`JudgmentResult`, `photo_results` 등)은 스펙 §3의 정의를 그대로 따른다.
 
+> **2026-07-24 amendment:** Task 11 완료 후 실제 스모크 테스트(Task 12) 진행 중 Anthropic 계정 크레딧 부족으로 막혀, 사용자 요청에 따라 `proxy`의 AI 제공자를 Claude(Anthropic SDK)에서 **Google Gemini(`@google/genai`)** 로 교체했다. 아래 Task 10/11 섹션에 적힌 Claude 기반 코드는 **실제로 커밋된 원본 그대로 보존**한 역사적 기록이며, 이후 별도 커밋으로 Gemini 기반 구현으로 교체되었다 — 실제 소스는 `proxy/api/judge-content.ts` 참고. 아래 Global Constraints 중 "Claude 모델 ID `claude-sonnet-5`"와 "`ANTHROPIC_API_KEY`" 항목은 이 교체 이후로는 적용되지 않으며, 현재는 모델 `gemini-2.5-flash`와 환경변수 `GEMINI_API_KEY`를 사용한다. Task 12 섹션은 이 교체를 반영해 갱신했다.
+
 ---
 
 ## File Structure
@@ -1884,27 +1886,29 @@ git commit -m "feat: implement Claude API proxy handler with injectable client"
 
 ---
 
-### Task 12: 실제 Claude API 연동 스모크 테스트 (M4, 수동 검증)
+### Task 12: 실제 Gemini API 연동 스모크 테스트 (M4, 수동 검증)
 
-**무엇을 완료하는가 (쉬운 설명):** 지금까지는 전부 "가짜 응답"으로 테스트했습니다. 이 단계에서는 실제 Claude API 키를 넣고, 실제(익명화된) 후기 예시 몇 개를 넣어봐서 사람이 눈으로 결과가 그럴듯한지 확인합니다. 이건 자동으로 pass/fail 나는 테스트가 아니라 "사람이 보는 점검"입니다.
+> **2026-07-24 갱신:** 이 태스크는 원래 Claude 기준으로 작성되었으나, Task 11 완료 후 Anthropic 계정 크레딧 부족으로 막혀 AI 제공자를 Google Gemini(`@google/genai`)로 교체한 뒤 실행했다. 아래 내용은 실제로 커밋된 Gemini 기반 코드를 반영한다.
+
+**무엇을 완료하는가 (쉬운 설명):** 지금까지는 전부 "가짜 응답"으로 테스트했습니다. 이 단계에서는 실제 Gemini API 키를 넣고, 실제(익명화된) 후기 예시 몇 개를 넣어봐서 사람이 눈으로 결과가 그럴듯한지 확인합니다. 이건 자동으로 pass/fail 나는 테스트가 아니라 "사람이 보는 점검"입니다.
 
 **Files:**
 - Create: `proxy/scripts/smoke-test.ts`
 - Modify: `proxy/package.json` (스크립트 추가)
 
 **Interfaces:**
-- Consumes: `createHandler`, 실제 `Anthropic` 클라이언트 (Task 11)
+- Consumes: `createHandler`, 실제 `GoogleGenAI` 클라이언트 (Task 11, Gemini 이관 이후)
 - Produces: 콘솔에 사람이 읽을 판정 결과 출력 (자동 테스트 아님)
 
-- [ ] **Step 1: 스모크 테스트 스크립트 작성**
+- [x] **Step 1: 스모크 테스트 스크립트 작성**
 
 `proxy/scripts/smoke-test.ts`:
 ```ts
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 import { createHandler } from '../api/judge-content';
 
 /**
- * 수동 실행 전용 스크립트. ANTHROPIC_API_KEY 환경변수가 필요하다.
+ * 수동 실행 전용 스크립트. GEMINI_API_KEY 환경변수가 필요하다.
  * 실행: npm run smoke-test -- (proxy 디렉토리에서)
  * 자동 CI 테스트에는 포함하지 않는다 — 실제 과금이 발생하고 결과가 비결정적이기 때문.
  */
@@ -1922,7 +1926,7 @@ const SAMPLE_CASES = [
 ];
 
 async function main() {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const handler = createHandler(client);
 
   for (const testCase of SAMPLE_CASES) {
@@ -1944,7 +1948,7 @@ main().catch((err) => {
 });
 ```
 
-- [ ] **Step 2: package.json에 실행 스크립트 추가**
+- [x] **Step 2: package.json에 실행 스크립트 추가**
 
 `proxy/package.json`의 `"scripts"`에 추가:
 ```json
@@ -1956,7 +1960,7 @@ main().catch((err) => {
 "tsx": "^4.16.2"
 ```
 
-- [ ] **Step 3: 의존성 설치**
+- [x] **Step 3: 의존성 설치**
 
 ```bash
 cd proxy && npm install
@@ -1965,7 +1969,7 @@ cd proxy && npm install
 - [ ] **Step 4: 실제 API 키로 수동 실행 (사람이 직접 확인)**
 
 ```bash
-cd proxy && ANTHROPIC_API_KEY=sk-ant-실제키 npm run smoke-test
+cd proxy && GEMINI_API_KEY=실제키 npm run smoke-test
 ```
 
 Expected: 콘솔에 두 사례에 대한 판정 결과가 출력됨. 첫 번째("만족스러웠어요")는 `content_relevant: true`, 두 번째("ㄱㄴㄷㄹㅁ")는 `content_flag: "meaningless"`에 가까운 응답이 나오는지 **사람이 직접 확인**한다. (참고: 이 엔진 단계에서는 첫 번째 규칙 체크에서 이미 의미불명 텍스트가 걸러지므로, 두 번째 사례는 실제로는 `objectiveRules.ts`가 AI 호출 전에 확정한다 — 이 스모크 테스트는 프록시 단독 동작만 확인하는 것이다.)
@@ -1976,7 +1980,7 @@ Expected: 콘솔에 두 사례에 대한 판정 결과가 출력됨. 첫 번째(
 
 ```bash
 git add proxy/scripts/smoke-test.ts proxy/package.json docs/superpowers/smoke-test-log.md
-git commit -m "chore: add manual smoke-test script for real Claude API validation"
+git commit -m "chore: add manual smoke-test script for real Gemini API validation"
 ```
 
 ---

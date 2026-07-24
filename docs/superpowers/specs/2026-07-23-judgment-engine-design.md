@@ -17,7 +17,7 @@ PRD가 스스로 "판정 엔진이 2차(24시간 서버 자동화) 재사용의 
 - PRD 8.0~8.6의 판정 기준을 그대로 코드화해, review 데이터(JSON)를 입력받아 `AUTO_HOLD_CANDIDATE` / `APPROVE_CANDIDATE` / `NEEDS_REVIEW` 중 하나와 판정 근거를 반환하는 모듈을 만든다.
 - 티켓 사용/상담/현장 앱결제/영수증 4개 후기 유형 모두의 승인·보류 기준(PRD 8.1~8.5)을 다룬다 — 영수증 후기에만 국한하지 않는다.
 - 사진이 N장 등록된 경우, PRD 8.0의 "기준 미달 사진만 숨김 처리 후 승인" 규칙에 따라 사진 단위 개별 판정까지 반환한다(전체 후기 판정 하나만이 아니라).
-- 객관적으로 확인 가능한 규칙과, 사진/텍스트 내용처럼 사람의 판단이 필요한 부분(AI 판단)을 분리해서 구현하고, 후자는 이번 1차부터 Claude API로 처리한다.
+- 객관적으로 확인 가능한 규칙과, 사진/텍스트 내용처럼 사람의 판단이 필요한 부분(AI 판단)을 분리해서 구현하고, 후자는 이번 1차부터 Gemini API로 처리한다.
 - 브라우저(크롬 확장)와 Node.js(2차 서버) 양쪽에서 코드 변경 없이 재사용 가능한 형태로 만든다.
 
 **비목표**
@@ -48,13 +48,13 @@ judgment-engine/                    ← 독립 패키지 (2차 서버로 그대�
     └── mapping.test.ts
 
 proxy/                              ← 별도 Vercel 프로젝트 (judgment-engine이 호출하는 대상)
-└── api/judge-content.ts            # { photos, text, reviewType } 받아 Claude API 호출 후 구조화 응답 반환
+└── api/judge-content.ts            # { photos, text, reviewType } 받아 Gemini API 호출 후 구조화 응답 반환
 ```
 
 **핵심 원칙**
 - `judgment-engine`은 `window`, `document`, `chrome.*`를 전혀 참조하지 않는다. `fetch`만 사용하므로 브라우저 background service worker와 Node.js 양쪽에서 동일 코드로 동작한다.
 - `judgeReview()`는 비동기 순수 함수다: 같은 입력 + 같은 프록시 응답이면 항상 같은 출력. 저장(로그 적재)이나 화면 표시는 이 엔진을 호출하는 쪽(확장 프로그램 또는 2차 서버)의 책임이며, 엔진 내부에서 하지 않는다.
-- API 키, 모델명, Claude API 호출 세부사항은 전부 `proxy/`에 캡슐화된다. `judgment-engine`은 프록시의 URL 하나만 알면 된다.
+- API 키, 모델명, Gemini API 호출 세부사항은 전부 `proxy/`에 캡슐화된다. `judgment-engine`은 프록시의 URL 하나만 알면 된다.
 
 ---
 
@@ -175,7 +175,7 @@ judgeReview(input)
 ### 5.1 프록시 (`proxy/api/judge-content.ts`, Vercel Function)
 
 - 요청: `{ review_type, content_text, photos: [{url, declared_category}] }`
-- 내부에서 Claude API(비전+텍스트 통합 1회 호출)를 호출. API 키는 Vercel 환경변수로만 보관, 클라이언트(크롬 확장)에는 절대 노출되지 않음.
+- 내부에서 Gemini API(비전+텍스트 통합 1회 호출)를 호출. API 키는 Vercel 환경변수로만 보관, 클라이언트(크롬 확장)에는 절대 노출되지 않음.
 - 프롬프트는 PRD §8.2/§8.3의 승인/보류 기준 표를 그대로 지시문으로 포함해, 모델이 정책 문서 기준으로만 판단하게 한다.
 - 응답은 구조화된 JSON으로 강제(tool use / structured output). 사진은 **배열의 각 항목마다 개별 판단**을 반환한다(PRD 8.0의 "일부 사진만 숨김 처리" 요구사항 반영):
 
@@ -218,15 +218,15 @@ judgeReview(input)
 - PRD 8.0~8.6 표의 각 행(row)마다 최소 1개의 가상 `ReviewInput` fixture를 만든다 (예: "영수증 금액 불일치", "브라질리언 제모 + 일반사진 등록 → 승인", "LDM+여성시술 + 일반사진 등록 → 보류" 등 PRD가 직접 든 예시 포함).
 - 사진 N장 중 일부만 기준 미달인 케이스(예: 3장 중 1장이 시술과 무관 → 그 1장만 HIDDEN, 나머지 승인)를 별도 fixture로 반드시 포함해 `photo_results`가 사진별로 정확히 나뉘는지 검증한다.
 - 객관적 규칙(`objectiveRules.ts`, `mapping.ts`)은 AI 호출 없이 100% 결정론적으로 단위 테스트한다.
-- AI가 필요한 경로(`engine.test.ts`)는 `aiAdapter`를 mock으로 대체해, "AI가 이런 응답을 줬을 때 최종 판정이 올바르게 매핑되는가"를 검증한다. 실제 Claude API를 매번 호출하지 않아 테스트가 빠르고 안정적이다.
-- 실제 Claude API/프록시 연동 자체가 잘 동작하는지는 별도의 소규모 수동 점검(스모크 테스트)으로 확인하고, 자동 유닛 테스트와는 분리한다.
+- AI가 필요한 경로(`engine.test.ts`)는 `aiAdapter`를 mock으로 대체해, "AI가 이런 응답을 줬을 때 최종 판정이 올바르게 매핑되는가"를 검증한다. 실제 Gemini API를 매번 호출하지 않아 테스트가 빠르고 안정적이다.
+- 실제 Gemini API/프록시 연동 자체가 잘 동작하는지는 별도의 소규모 수동 점검(스모크 테스트)으로 확인하고, 자동 유닛 테스트와는 분리한다.
 
 ---
 
 ## 7. 2차(서버 자동화)로의 재사용 지점
 
 - `judgment-engine` 패키지는 코드 변경 없이 Node.js 서버 프로젝트에 그대로 옮겨 `import`한다 (PRD §11과 동일).
-- `proxy/`도 그대로 유지 가능 — 2차 서버가 호출하는 대상이 크롬 확장에서 서버로 바뀔 뿐, 프록시 자체의 역할(Claude API 키 보호)은 동일하다.
+- `proxy/`도 그대로 유지 가능 — 2차 서버가 호출하는 대상이 크롬 확장에서 서버로 바뀔 뿐, 프록시 자체의 역할(Gemini API 키 보호)은 동일하다.
 - 확장 프로그램(1차)과 서버(2차) 모두 "수집 계층"에서 `ReviewInput`을 만들어 `judgeReview()`에 넘기는 어댑터 코드만 각자 새로 작성하면 된다.
 
 ---
@@ -244,8 +244,8 @@ judgeReview(input)
 | 단계 | 내용 |
 |---|---|
 | M1 | 타입 정의(`types.ts`) + 객관적 규칙 엔진(`objectiveRules.ts`, `mapping.ts`) + fixture 기반 유닛 테스트 |
-| M2 | 프록시(Vercel Function) 뼈대 + Claude API 연동 + 구조화 출력 스키마 |
+| M2 | 프록시(Vercel Function) 뼈대 + Gemini API 연동 + 구조화 출력 스키마 |
 | M3 | `aiAdapter.ts` + `engine.ts` 오케스트레이션 + mock 기반 통합 테스트 |
-| M4 | 실제 Claude API 연동 스모크 테스트, 소수 실제(익명화) 사례로 수동 검증 |
+| M4 | 실제 Gemini API 연동 스모크 테스트, 소수 실제(익명화) 사례로 수동 검증 |
 
 M4까지 완료되면 이 엔진을 가져다 쓰는 크롬 확장 골격(콘텐츠 스크립트/오버레이/팝업)을 다음 스펙으로 브레인스토밍한다.

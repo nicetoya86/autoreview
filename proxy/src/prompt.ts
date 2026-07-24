@@ -13,5 +13,5 @@ export function buildPrompt(reviewType: string, contentText: string, photoCount:
 후기 내용: ${contentText}
 등록된 사진 수: ${photoCount}장 (아래 이미지 순서와 photos 배열 순서가 동일합니다)
 
-각 사진과 후기 내용을 위 기준으로 개별 판단해 submit_judgment 도구로 결과를 제출하세요.`;
+각 사진과 후기 내용을 위 기준으로 개별 판단해 지정된 JSON 스키마 형식으로 결과를 제출하세요.`;
 }

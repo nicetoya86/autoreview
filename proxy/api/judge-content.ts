@@ -1,41 +1,45 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 import { buildPrompt } from '../src/prompt';
 
-interface AnthropicLike {
-  messages: {
-    create: (params: Record<string, unknown>) => Promise<{ content: Array<Record<string, unknown>> }>;
+interface GeminiLike {
+  models: {
+    generateContent: (params: Record<string, unknown>) => Promise<{ text?: string }>;
   };
 }
 
-const JUDGE_TOOL = {
-  name: 'submit_judgment',
-  description: '후기 텍스트와 사진에 대한 판단 결과를 제출한다',
-  input_schema: {
-    type: 'object',
-    properties: {
-      content_relevant: { type: 'boolean' },
-      content_flag: { type: ['string', 'null'], enum: ['meaningless', 'public_order', null] },
-      photos: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            url: { type: 'string' },
-            relevant: { type: 'boolean' },
-            identifiable: { type: 'boolean' },
-            flag: { type: ['string', 'null'], enum: ['unidentifiable', 'public_order', 'irrelevant', null] },
-            confidence: { type: 'number' },
-          },
-          required: ['url', 'relevant', 'identifiable', 'flag', 'confidence'],
+const JUDGMENT_SCHEMA = {
+  type: 'object',
+  properties: {
+    content_relevant: { type: 'boolean' },
+    content_flag: { type: 'string', enum: ['meaningless', 'public_order'], nullable: true },
+    photos: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          url: { type: 'string' },
+          relevant: { type: 'boolean' },
+          identifiable: { type: 'boolean' },
+          flag: { type: 'string', enum: ['unidentifiable', 'public_order', 'irrelevant'], nullable: true },
+          confidence: { type: 'number' },
         },
+        required: ['url', 'relevant', 'identifiable', 'flag', 'confidence'],
       },
-      confidence: { type: 'number' },
-      reasoning: { type: 'string' },
     },
-    required: ['content_relevant', 'content_flag', 'photos', 'confidence', 'reasoning'],
+    confidence: { type: 'number' },
+    reasoning: { type: 'string' },
   },
+  required: ['content_relevant', 'content_flag', 'photos', 'confidence', 'reasoning'],
 } as const;
+
+function guessMimeType(url: string): string {
+  const ext = url.split('.').pop()?.toLowerCase().split('?')[0];
+  if (ext === 'png') return 'image/png';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'gif') return 'image/gif';
+  return 'image/jpeg';
+}
 
 interface JudgeRequestBody {
   review_type: string;
@@ -48,7 +52,7 @@ function isValidBody(body: unknown): body is JudgeRequestBody {
   return !!b && typeof b.content_text === 'string' && Array.isArray(b.photos);
 }
 
-export function createHandler(client: AnthropicLike) {
+export function createHandler(client: GeminiLike) {
   return async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'method not allowed' });
@@ -62,32 +66,39 @@ export function createHandler(client: AnthropicLike) {
 
     const { review_type, content_text, photos } = req.body;
 
-    const imageBlocks = photos.map((p) => ({
-      type: 'image' as const,
-      source: { type: 'url' as const, url: p.url },
+    const imageParts = photos.map((p) => ({
+      fileData: { fileUri: p.url, mimeType: guessMimeType(p.url) },
     }));
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-5',
-      max_tokens: 1024,
-      tools: [JUDGE_TOOL],
-      tool_choice: { type: 'tool', name: 'submit_judgment' },
-      messages: [
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
         {
           role: 'user',
-          content: [{ type: 'text', text: buildPrompt(review_type, content_text, photos.length) }, ...imageBlocks],
+          parts: [{ text: buildPrompt(review_type, content_text, photos.length) }, ...imageParts],
         },
       ],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: JUDGMENT_SCHEMA,
+      },
     });
 
-    const toolUse = message.content.find((block) => block.type === 'tool_use');
-    if (!toolUse) {
+    if (!response.text) {
       res.status(502).json({ error: 'AI did not return structured judgment' });
       return;
     }
 
-    res.status(200).json((toolUse as { input: unknown }).input);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(response.text);
+    } catch {
+      res.status(502).json({ error: 'AI did not return structured judgment' });
+      return;
+    }
+
+    res.status(200).json(parsed);
   };
 }
 
-export default createHandler(new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }));
+export default createHandler(new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) as unknown as GeminiLike);
