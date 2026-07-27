@@ -1,10 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createHandler } from '../api/judge-content';
 
 function fakeRes() {
   const res: any = {};
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
+  res.setHeader = vi.fn().mockReturnValue(res);
+  res.end = vi.fn().mockReturnValue(res);
   return res;
 }
 
@@ -83,5 +85,35 @@ describe('judge-content handler', () => {
     await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(502);
+  });
+});
+
+describe('judge-content handler CORS', () => {
+  const originalEnv = process.env.ALLOWED_EXTENSION_ORIGIN;
+
+  afterEach(() => {
+    process.env.ALLOWED_EXTENSION_ORIGIN = originalEnv;
+  });
+
+  it('ALLOWED_EXTENSION_ORIGIN이 설정되어 있으면 Access-Control-Allow-Origin을 반환한다', async () => {
+    process.env.ALLOWED_EXTENSION_ORIGIN = 'chrome-extension://abc123';
+    const handler = createHandler({ models: { generateContent: vi.fn() } } as any);
+    const req: any = { method: 'OPTIONS' };
+    const res = fakeRes();
+
+    await handler(req, res);
+
+    expect(res.setHeader).toHaveBeenCalledWith('Access-Control-Allow-Origin', 'chrome-extension://abc123');
+  });
+
+  it('OPTIONS 프리플라이트는 204로 즉시 응답한다', async () => {
+    process.env.ALLOWED_EXTENSION_ORIGIN = 'chrome-extension://abc123';
+    const handler = createHandler({ models: { generateContent: vi.fn() } } as any);
+    const req: any = { method: 'OPTIONS' };
+    const res = fakeRes();
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(204);
   });
 });

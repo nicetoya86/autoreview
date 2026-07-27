@@ -54,6 +54,18 @@ function isValidBody(body: unknown): body is JudgeRequestBody {
 
 export function createHandler(client: GeminiLike) {
   return async function handler(req: VercelRequest, res: VercelResponse) {
+    const allowedOrigin = process.env.ALLOWED_EXTENSION_ORIGIN;
+    if (allowedOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'method not allowed' });
       return;
