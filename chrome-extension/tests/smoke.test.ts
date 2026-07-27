@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { BACKGROUND_READY } from '../src/background/index';
+import { PROXY_URL } from '../src/shared/proxyConfig';
 
 describe('smoke', () => {
-  it('background 모듈이 로드된다', () => {
-    expect(BACKGROUND_READY).toBe(true);
+  it('shared 모듈이 로드된다', () => {
+    expect(PROXY_URL).toBeTruthy();
   });
 });
