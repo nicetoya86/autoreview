@@ -2424,7 +2424,7 @@ git commit -m "feat: wire list-page trigger button to judgment + status-capture 
 
 ### Task 14: 상세 패널 렌더링 (`renderPanel.ts`)
 
-**무엇을 완료하는가 (쉬운 설명):** 상세 화면 사이드 패널을 그리는 순수 함수를 만듭니다. 캐시가 없으면 "정밀 판정하기" 버튼을, 있으면 결과+동의/비동의 버튼을 보여줍니다.
+**무엇을 완료하는가 (쉬운 설명):** 상세 화면 사이드 패널을 그리는 순수 함수를 만듭니다. 캐시가 없으면 "정밀 판정하기" 버튼만, 있으면 결과+동의/비동의 버튼과 함께 재판정 버튼("정밀 판정하기" 또는 "다시 판정하기")을 항상 보여줍니다 — 스펙 §3.4 "사용자가 언제든 수동으로 다시 판정 가능(지문이 같아도 강제 재호출)" 요구사항 때문에, 이미 tier=detail 결과가 있어도 버튼이 사라지면 안 됩니다.
 
 **Files:**
 - Create: `chrome-extension/src/content/detail/renderPanel.ts`
@@ -2501,10 +2501,14 @@ describe('renderPanel', () => {
     expect(container.querySelector('.rvw-mock-judge-button')).not.toBeNull();
   });
 
-  it('tier=detail 캐시가 있으면 정밀 판정하기 버튼 없이 결과만 보여준다', () => {
-    renderPanel(container, entry('detail'), { onJudge: vi.fn(), onFeedback: vi.fn() });
-    expect(container.querySelector('.rvw-mock-judge-button')).toBeNull();
+  it('tier=detail 캐시가 있으면 결과와 함께 "다시 판정하기" 버튼도 보여준다(수동 강제 재호출)', () => {
+    const onJudge = vi.fn();
+    renderPanel(container, entry('detail'), { onJudge, onFeedback: vi.fn() });
+    const button = container.querySelector('.rvw-mock-judge-button') as HTMLElement;
+    expect(button?.textContent).toContain('다시 판정하기');
     expect(container.textContent).toContain('rule-a');
+    button.click();
+    expect(onJudge).toHaveBeenCalled();
   });
 
   it('동의/비동의 버튼 클릭 시 onFeedback을 호출한다', () => {
@@ -2577,13 +2581,12 @@ export function renderPanel(container: HTMLElement, entry: CacheEntry | null, ha
     panel.appendChild(disagree);
   }
 
-  if (!entry || entry.tier === 'list') {
-    const judgeButton = container.ownerDocument.createElement('button');
-    judgeButton.className = 'rvw-mock-judge-button';
-    judgeButton.textContent = '정밀 판정하기';
-    judgeButton.addEventListener('click', handlers.onJudge);
-    panel.appendChild(judgeButton);
-  }
+  // 재판정 버튼은 항상 보여준다 — tier=detail이어도 사라지면 안 됨(§3.4 "지문이 같아도 강제 재호출" 요구사항).
+  const judgeButton = container.ownerDocument.createElement('button');
+  judgeButton.className = 'rvw-mock-judge-button';
+  judgeButton.textContent = entry?.tier === 'detail' ? '다시 판정하기' : '정밀 판정하기';
+  judgeButton.addEventListener('click', handlers.onJudge);
+  panel.appendChild(judgeButton);
 
   container.appendChild(panel);
 }
