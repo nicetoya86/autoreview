@@ -2,6 +2,7 @@ import type { MockJudgment, ReviewInput } from '../types';
 import { isDuplicate } from './duplicate';
 import { checkReceiptObjective } from './receipt';
 import { isMeaninglessText } from './meaninglessText';
+import { containsPii } from './containsPii';
 
 export type ObjectiveResult =
   | { decided: true; mock_judgment: MockJudgment; matched_rules: string[]; reasoning: string }
@@ -42,6 +43,15 @@ export function runObjectiveRules(input: ReviewInput): ObjectiveResult {
       mock_judgment: 'AUTO_HOLD_CANDIDATE',
       matched_rules: ['meaningless-text'],
       reasoning: '후기 내용이 의미를 알 수 없는 텍스트로 판단됨',
+    };
+  }
+
+  if (containsPii(input.content_text)) {
+    return {
+      decided: true,
+      mock_judgment: 'AUTO_HOLD_CANDIDATE',
+      matched_rules: ['contains-pii'],
+      reasoning: '후기 내용에 전화번호/이메일 등 개인정보가 포함된 것으로 판단됨',
     };
   }
 

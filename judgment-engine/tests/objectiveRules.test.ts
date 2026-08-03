@@ -67,6 +67,12 @@ describe('runObjectiveRules', () => {
     expect(result).toMatchObject({ decided: true, mock_judgment: 'AUTO_HOLD_CANDIDATE' });
   });
 
+  it('개인정보(전화번호) 포함이면 즉시 AUTO_HOLD_CANDIDATE', () => {
+    const result = runObjectiveRules(baseInput({ content_text: '연락처는 010-1234-5678 입니다' }));
+    expect(result).toMatchObject({ decided: true, mock_judgment: 'AUTO_HOLD_CANDIDATE' });
+    if (result.decided) expect(result.matched_rules).toContain('contains-pii');
+  });
+
   it('영수증 필드 확인 불가면 NEEDS_REVIEW', () => {
     const result = runObjectiveRules(
       baseInput({

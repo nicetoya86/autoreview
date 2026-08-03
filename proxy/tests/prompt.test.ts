@@ -14,6 +14,13 @@ describe('buildPrompt', () => {
     expect(prompt).toContain('미풍양속');
     expect(prompt).toContain('식별');
   });
+
+  it('개인정보/욕설·선정적 표현 보류 기준 문구를 포함한다', () => {
+    const prompt = buildPrompt('RECEIPT', 'text', 1);
+    expect(prompt).toContain('개인정보');
+    expect(prompt).toContain('전화번호');
+    expect(prompt).toContain('욕설');
+  });
 });
 
 describe('buildPrompt - few-shot 예시', () => {
@@ -25,6 +32,8 @@ describe('buildPrompt - few-shot 예시', () => {
     expect(prompt).toContain('날씨도 더운데 오늘 시술받고 왔어요. 다운타임 없어서 좋았습니다.');
     expect(prompt).toContain('오늘 점심 뭐 먹지 고민되네요.');
     expect(prompt).toContain('ㅁㄴㅇㄹㅁㄴㅇㄹㅁㄴㅇㄹ');
+    expect(prompt).toContain('ㅈ어ㅣㅏㅈ버ㅓ아ㅣㅁㄴㅇ');
+    expect(prompt).toContain('제 이름은 김민수예요, 여기 병원 자주 갈 것 같아요.');
   });
 
   it('각 예시가 올바른 승인/보류 라벨과 짝지어 렌더링된다 (라벨 스왑 회귀 방지)', () => {
@@ -34,6 +43,8 @@ describe('buildPrompt - few-shot 예시', () => {
     expect(prompt).toContain('- "날씨도 더운데 오늘 시술받고 왔어요. 다운타임 없어서 좋았습니다." → 승인');
     expect(prompt).toContain('- "오늘 점심 뭐 먹지 고민되네요." → 보류');
     expect(prompt).toContain('- "ㅁㄴㅇㄹㅁㄴㅇㄹㅁㄴㅇㄹ" → 보류');
+    expect(prompt).toContain('- "ㅈ어ㅣㅏㅈ버ㅓ아ㅣㅁㄴㅇ" → 보류');
+    expect(prompt).toContain('- "제 이름은 김민수예요, 여기 병원 자주 갈 것 같아요." → 보류');
   });
 
   it('예시 섹션이 [승인 기준 - 후기 내용] 바로 다음, [승인 기준 - 사진]보다 앞에 온다 (사진 판정에 텍스트 예시가 섞이지 않도록)', () => {

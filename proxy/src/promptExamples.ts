@@ -35,4 +35,14 @@ export const TEXT_JUDGMENT_EXAMPLES: PromptExample[] = [
     text: 'ㅁㄴㅇㄹㅁㄴㅇㄹㅁㄴㅇㄹ',
     reason: '의미를 알 수 없는 반복 문자 — 보류',
   },
+  {
+    label: 'HOLD',
+    text: 'ㅈ어ㅣㅏㅈ버ㅓ아ㅣㅁㄴㅇ',
+    reason: '자모와 음절이 뒤섞인 의미 없는 텍스트 — 식별 불가로 보류',
+  },
+  {
+    label: 'HOLD',
+    text: '제 이름은 김민수예요, 여기 병원 자주 갈 것 같아요.',
+    reason: '전화번호/이메일이 없어도 실명이 노출되면 개인정보 문제로 보류',
+  },
 ];
