@@ -10,8 +10,6 @@ const REVIEW_TYPE_LABELS: Record<string, ReviewType> = {
 
 const KNOWN_STATUS_LABELS: ReviewStatusLabel[] = ['대기', '승인', '보류', '숨김'];
 
-const DETAIL_LINK_PATTERN = /\/posts\/reviews\/detail\/(\d+)/;
-
 export function buildHeaderIndex(table: HTMLTableElement): Record<string, number> {
   const headerCells = Array.from(table.querySelectorAll('thead th'));
   const index: Record<string, number> = {};
@@ -41,9 +39,8 @@ export function parseListPage(table: HTMLTableElement): ListRowData[] {
     const statusText = cellText(cells, headerIndex['검수 상태']) as ReviewStatusLabel;
     if (!KNOWN_STATUS_LABELS.includes(statusText) || statusText !== '대기') continue;
 
-    const link = row.querySelector('a[href*="/posts/reviews/detail/"]');
-    const match = link?.getAttribute('href')?.match(DETAIL_LINK_PATTERN);
-    if (!match) continue;
+    const reviewId = row.querySelector('button[data-id]')?.getAttribute('data-id');
+    if (!reviewId) continue;
 
     const typeText = cellText(cells, headerIndex['후기 유형']);
     const review_type = REVIEW_TYPE_LABELS[typeText];
@@ -59,7 +56,7 @@ export function parseListPage(table: HTMLTableElement): ListRowData[] {
     });
 
     result.push({
-      review_id: match[1],
+      review_id: reviewId,
       review_type,
       content_text: cellText(cells, headerIndex['후기 내용']),
       photos,

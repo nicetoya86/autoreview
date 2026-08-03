@@ -16,6 +16,10 @@ export async function runDetailPageFlow(
       onJudge: async () => {
         const detail = parseDetailPage(root, reviewId);
         const response = await sendMessage({ type: 'JUDGE_DETAIL', detail });
+        if (response.type === 'ERROR') {
+          alert(`모의판정 실패: ${response.message}`);
+          return;
+        }
         if (response.type === 'JUDGE_DETAIL_RESULT') {
           currentEntry = response.entry;
           draw();

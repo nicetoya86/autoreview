@@ -16,28 +16,26 @@ export async function handleMessage(message: ExtensionMessage, deps: MessageHand
 
   switch (message.type) {
     case 'JUDGE_LIST': {
-      const entries: CacheEntry[] = [];
-      for (const row of message.rows) {
-        const fingerprint = computeFingerprint(row);
-        const existing = await cacheStore.get(row.review_id);
-        if (existing && existing.fingerprint === fingerprint) {
-          entries.push(existing);
-          continue;
-        }
+      const entries = await Promise.all(
+        message.rows.map(async (row): Promise<CacheEntry> => {
+          const fingerprint = computeFingerprint(row);
+          const existing = await cacheStore.get(row.review_id);
+          if (existing && existing.fingerprint === fingerprint) return existing;
 
-        const duplicateFlags = computeListDuplicateFlags(row, message.rows);
-        const result = await judgeListRow(row, duplicateFlags, aiConfig);
-        const entry: CacheEntry = {
-          review_id: row.review_id,
-          tier: 'list',
-          fingerprint,
-          duplicate_flags: duplicateFlags,
-          result,
-          checked_at: new Date().toISOString(),
-        };
-        await cacheStore.set(entry);
-        entries.push(entry);
-      }
+          const duplicateFlags = computeListDuplicateFlags(row, message.rows);
+          const result = await judgeListRow(row, duplicateFlags, aiConfig);
+          const entry: CacheEntry = {
+            review_id: row.review_id,
+            tier: 'list',
+            fingerprint,
+            duplicate_flags: duplicateFlags,
+            result,
+            checked_at: new Date().toISOString(),
+          };
+          await cacheStore.set(entry);
+          return entry;
+        })
+      );
       return { type: 'JUDGE_LIST_RESULT', entries };
     }
 

@@ -5,6 +5,7 @@
   "scripts": {
     "test": "vitest run",
     "dev": "vercel dev",
+    "dev:local": "node --env-file=.env --import tsx scripts/local-server.ts",
     "smoke-test": "tsx scripts/smoke-test.ts"
   },
   "devDependencies": {

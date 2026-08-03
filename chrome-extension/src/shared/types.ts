@@ -49,4 +49,5 @@ export type ExtensionResponse =
   | { type: 'JUDGE_DETAIL_RESULT'; entry: CacheEntry }
   | { type: 'CACHE_ENTRY'; entry: CacheEntry | null }
   | { type: 'CAPTURE_DONE' }
-  | { type: 'FEEDBACK_SAVED'; entry: CacheEntry | null };
+  | { type: 'FEEDBACK_SAVED'; entry: CacheEntry | null }
+  | { type: 'ERROR'; message: string };
