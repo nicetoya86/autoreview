@@ -73,6 +73,12 @@ describe('runObjectiveRules', () => {
     if (result.decided) expect(result.matched_rules).toContain('contains-pii');
   });
 
+  it('욕설 포함이면 즉시 AUTO_HOLD_CANDIDATE', () => {
+    const result = runObjectiveRules(baseInput({ content_text: '시발 개짜증나네' }));
+    expect(result).toMatchObject({ decided: true, mock_judgment: 'AUTO_HOLD_CANDIDATE' });
+    if (result.decided) expect(result.matched_rules).toContain('contains-profanity');
+  });
+
   it('영수증 필드 확인 불가면 NEEDS_REVIEW', () => {
     const result = runObjectiveRules(
       baseInput({

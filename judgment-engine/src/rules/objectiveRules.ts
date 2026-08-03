@@ -3,6 +3,7 @@ import { isDuplicate } from './duplicate';
 import { checkReceiptObjective } from './receipt';
 import { isMeaninglessText } from './meaninglessText';
 import { containsPii } from './containsPii';
+import { containsProfanity } from './containsProfanity';
 
 export type ObjectiveResult =
   | { decided: true; mock_judgment: MockJudgment; matched_rules: string[]; reasoning: string }
@@ -52,6 +53,15 @@ export function runObjectiveRules(input: ReviewInput): ObjectiveResult {
       mock_judgment: 'AUTO_HOLD_CANDIDATE',
       matched_rules: ['contains-pii'],
       reasoning: '후기 내용에 전화번호/이메일 등 개인정보가 포함된 것으로 판단됨',
+    };
+  }
+
+  if (containsProfanity(input.content_text)) {
+    return {
+      decided: true,
+      mock_judgment: 'AUTO_HOLD_CANDIDATE',
+      matched_rules: ['contains-profanity'],
+      reasoning: '후기 내용에 욕설/비속어가 포함된 것으로 판단됨',
     };
   }
 
