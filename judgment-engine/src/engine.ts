@@ -44,7 +44,8 @@ export async function judgeReview(input: ReviewInput, aiConfig: AiAdapterConfig)
   try {
     const ai = await judgeContentWithAi(input, aiConfig);
     return buildResultFromAi(input, ai);
-  } catch {
+  } catch (err) {
+    console.error(`[judgment-engine] AI 판단 실패 (review_id=${input?.review_id}):`, err);
     return {
       review_id: input?.review_id,
       mock_judgment: 'NEEDS_REVIEW',

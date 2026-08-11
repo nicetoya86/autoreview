@@ -101,6 +101,42 @@ describe('handleMessage', () => {
     expect(judgeReview).toHaveBeenCalledTimes(1);
   });
 
+  it('JUDGE_LIST: 여러 행을 동시에 호출하지 않고 한 건씩 순차로 판정한다', async () => {
+    const cacheStore = createCacheStore(fakeStorage());
+    const rows: ListRowData[] = ['r1', 'r2', 'r3'].map((id) => ({
+      review_id: id,
+      review_type: 'TICKET_USE',
+      content_text: 'ok',
+      photos: [],
+      review_status: '대기',
+      modified_at: '2026-07-20',
+      author: '홍**',
+    }));
+
+    const { judgeReview } = await import('judgment-engine');
+    let active = 0;
+    let maxActive = 0;
+    vi.mocked(judgeReview).mockImplementation(async (input) => {
+      active++;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active--;
+      return {
+        review_id: input.review_id,
+        mock_judgment: 'APPROVE_CANDIDATE',
+        matched_rules: [],
+        confidence: 1,
+        reasoning: 'mock',
+        ai_invoked: false,
+        photo_results: [],
+      };
+    });
+
+    await handleMessage({ type: 'JUDGE_LIST', rows }, { cacheStore, aiConfig });
+
+    expect(maxActive).toBe(1);
+  });
+
   it('JUDGE_LIST: captureUrl이 있으면 판정 결과를 캡처 엔드포인트로 전송한다', async () => {
     const cacheStore = createCacheStore(fakeStorage());
     const rows: ListRowData[] = [

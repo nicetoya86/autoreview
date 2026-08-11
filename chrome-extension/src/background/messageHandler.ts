@@ -41,27 +41,31 @@ export async function handleMessage(message: ExtensionMessage, deps: MessageHand
 
   switch (message.type) {
     case 'JUDGE_LIST': {
-      const entries = await Promise.all(
-        message.rows.map(async (row): Promise<CacheEntry> => {
-          const fingerprint = computeFingerprint(row);
-          const existing = await cacheStore.get(row.review_id);
-          if (!message.force && existing && existing.fingerprint === fingerprint) return existing;
+      // 목록 판정은 많으면 300건 이상이라 동시에 쏘면 AI 쪽 rate limit에 걸린다(§ai-error 대량 발생).
+      // 그래서 병렬이 아니라 한 건씩 순차로 처리한다.
+      const entries: CacheEntry[] = [];
+      for (const row of message.rows) {
+        const fingerprint = computeFingerprint(row);
+        const existing = await cacheStore.get(row.review_id);
+        if (!message.force && existing && existing.fingerprint === fingerprint) {
+          entries.push(existing);
+          continue;
+        }
 
-          const duplicateFlags = computeListDuplicateFlags(row, message.rows);
-          const result = await judgeListRow(row, duplicateFlags, aiConfig);
-          await captureMockJudgment(captureUrl, row.review_id, row.review_type, row.content_text, row.photos, result);
-          const entry: CacheEntry = {
-            review_id: row.review_id,
-            tier: 'list',
-            fingerprint,
-            duplicate_flags: duplicateFlags,
-            result,
-            checked_at: new Date().toISOString(),
-          };
-          await cacheStore.set(entry);
-          return entry;
-        })
-      );
+        const duplicateFlags = computeListDuplicateFlags(row, message.rows);
+        const result = await judgeListRow(row, duplicateFlags, aiConfig);
+        await captureMockJudgment(captureUrl, row.review_id, row.review_type, row.content_text, row.photos, result);
+        const entry: CacheEntry = {
+          review_id: row.review_id,
+          tier: 'list',
+          fingerprint,
+          duplicate_flags: duplicateFlags,
+          result,
+          checked_at: new Date().toISOString(),
+        };
+        await cacheStore.set(entry);
+        entries.push(entry);
+      }
       return { type: 'JUDGE_LIST_RESULT', entries };
     }
 
