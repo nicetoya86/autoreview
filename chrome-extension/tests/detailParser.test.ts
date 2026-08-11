@@ -24,6 +24,26 @@ describe('parseDetailPage', () => {
     expect(data.modified_at).toBe('2026-07-20 10:00');
   });
 
+  it("'상담 후기 내용' 라벨도 content_text로 읽는다", () => {
+    const dom = new JSDOM(
+      '<div class="review-detail"><dl><dt>후기유형</dt><dd>상담 후기</dd><dt>상담 후기 내용</dt><dd>상담 잘 받았어요</dd></dl></div>'
+    );
+    const consultRoot = dom.window.document.querySelector('.review-detail') as HTMLElement;
+    const data = parseDetailPage(consultRoot, '2001');
+    expect(data.review_type).toBe('CONSULTATION');
+    expect(data.content_text).toBe('상담 잘 받았어요');
+  });
+
+  it("'시술 후기 내용'과 '상담 후기 내용'이 둘 다 있으면 합쳐서 판정 대상으로 삼는다", () => {
+    const dom = new JSDOM(
+      '<div class="review-detail"><dl><dt>후기유형</dt><dd>상담 후기</dd>' +
+        '<dt>시술 후기 내용</dt><dd>시술 만족</dd><dt>상담 후기 내용</dt><dd>상담도 만족</dd></dl></div>'
+    );
+    const bothRoot = dom.window.document.querySelector('.review-detail') as HTMLElement;
+    const data = parseDetailPage(bothRoot, '2002');
+    expect(data.content_text).toBe('시술 만족\n상담도 만족');
+  });
+
   it('브라질리언 제모는 전/후 촬영 예외 시술로 처리한다', () => {
     const data = parseDetailPage(root, '1001');
     expect(data.procedure).toEqual({ name: '브라질리언 제모', is_before_after_exempt: true });

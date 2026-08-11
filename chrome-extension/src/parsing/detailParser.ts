@@ -52,7 +52,10 @@ function parseReceiptFields(root: ParentNode): DetailPageData['receipt'] {
 }
 
 export function parseDetailPage(root: ParentNode, reviewId: string): DetailPageData {
-  const fields = extractLabeledFields(root, ['후기유형', '후기 내용', '수정 일시', '받은 시술']);
+  // 상세 화면은 후기 유형에 따라 '시술 후기 내용' 또는 '상담 후기 내용' 중 하나로 텍스트를 표시한다
+  // ('후기 내용'은 실제 화면 라벨과 다름 — 과거 잘못된 가정, 하위호환으로만 남겨둔다).
+  // 텍스트 검수는 둘 다 대상이므로 있는 걸 전부 합쳐서 판정에 넘긴다.
+  const fields = extractLabeledFields(root, ['후기유형', '시술 후기 내용', '상담 후기 내용', '후기 내용', '수정 일시', '받은 시술']);
   const review_type = REVIEW_TYPE_LABELS[fields['후기유형']] ?? 'TICKET_USE';
 
   const photos = Array.from(root.querySelectorAll('.photos img')).map((img) => ({
@@ -62,10 +65,14 @@ export function parseDetailPage(root: ParentNode, reviewId: string): DetailPageD
 
   const procedureName = fields['받은 시술'] || undefined;
 
+  const content_text = [fields['시술 후기 내용'], fields['상담 후기 내용'], fields['후기 내용']]
+    .filter((v): v is string => !!v && v.trim().length > 0)
+    .join('\n');
+
   return {
     review_id: reviewId,
     review_type,
-    content_text: fields['후기 내용'] ?? '',
+    content_text,
     photos,
     procedure: {
       name: procedureName,
