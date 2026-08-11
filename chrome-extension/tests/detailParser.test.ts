@@ -16,7 +16,7 @@ beforeAll(() => {
 });
 
 describe('parseDetailPage', () => {
-  it('기본 필드를 파싱한다', () => {
+  it("'시술 후기 내용'만 있으면 그것만 content_text로 읽는다 (기본 필드 파싱)", () => {
     const data = parseDetailPage(root, '1001');
     expect(data.review_id).toBe('1001');
     expect(data.review_type).toBe('RECEIPT');
