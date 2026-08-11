@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
-import handler from '../api/judge-content';
+import judgeContentHandler from '../api/judge-content';
+import debugCaptureHandler from '../api/debug-capture';
 
 /**
  * `vercel dev`(로그인 필요) 없이 크롬 확장에서 로컬로 실제 Gemini 호출을 테스트하기 위한 최소 서버.
@@ -7,6 +8,11 @@ import handler from '../api/judge-content';
  * 실행: npm run dev:local (proxy 디렉토리에서)
  */
 const PORT = Number(process.env.PORT) || 3000;
+
+const ROUTES: Record<string, typeof judgeContentHandler> = {
+  '/api/judge-content': judgeContentHandler,
+  '/api/debug-capture': debugCaptureHandler,
+};
 
 createServer(async (req, res) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} origin=${req.headers.origin ?? '-'}`);
@@ -30,7 +36,15 @@ createServer(async (req, res) => {
     res.end(JSON.stringify(body));
   };
 
-  await handler(vercelReq as never, vercelRes as never);
+  const route = ROUTES[req.url ?? ''];
+  if (!route) {
+    res.statusCode = 404;
+    res.end();
+    return;
+  }
+
+  await route(vercelReq as never, vercelRes as never);
 }).listen(PORT, () => {
-  console.log(`local judge-content proxy: http://localhost:${PORT}/api/judge-content`);
+  console.log(`local proxy listening on http://localhost:${PORT}`);
+  console.log(`  ${Object.keys(ROUTES).join('\n  ')}`);
 });
