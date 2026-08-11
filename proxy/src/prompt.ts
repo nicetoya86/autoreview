@@ -4,10 +4,20 @@ import { TEXT_JUDGMENT_EXAMPLES } from './promptExamples';
  * PRD §8.2(후기 내용/사진 기준)를 그대로 지시문으로 포함해,
  * 모델이 정책 문서 기준으로만 판단하게 한다 (스펙 §5.1).
  */
-export function buildPrompt(reviewType: string, contentText: string, photoCount: number): string {
+export function buildPrompt(
+  reviewType: string,
+  contentText: string,
+  photos: Array<{ declared_category: string }>
+): string {
   const examplesSection = TEXT_JUDGMENT_EXAMPLES.map(
     (e) => `- "${e.text}" → ${e.label === 'APPROVE' ? '승인' : '보류'} (${e.reason})`
   ).join('\n');
+
+  const photoListSection = photos.length
+    ? photos
+        .map((p, i) => `${i + 1}번: ${p.declared_category === 'BEFORE_AFTER' ? '시술 전/후 사진' : '일반 사진'}`)
+        .join('\n')
+    : '(등록된 사진 없음)';
 
   return `당신은 후기 검수 담당자를 돕는 판정 보조자입니다. 아래 정책 기준으로만 판단하세요.
 
@@ -21,9 +31,16 @@ ${examplesSection}
 [승인 기준 - 사진] 시술 부위/신체 일부, 시술 관련 장비·약품, 병원 내외부, 앱 결제 화면, 관련 캡쳐 화면은 승인. 식별 불가하거나 미풍양속에 위배되거나 시술과 무관하면 보류.
 "식별 가능"은 사진에 찍힌 대상(신체 부위/장비/화면/장소 등)이 무엇인지 알아볼 수 있다는 뜻입니다 — 사람 얼굴이나 신원을 알아볼 수 있는지와는 무관합니다. 얼굴이 안 보이거나 가려져 있어도, 또는 사람이 전혀 나오지 않는 사진(장비, 병원 간판, 결제 화면 등)이어도 사진 내용 자체를 알아볼 수 있으면 identifiable: true 입니다. 사진이 너무 흐리거나 어둡거나 잘려서 무엇을 찍었는지조차 알 수 없을 때만 identifiable: false로 판단하세요.
 
+[사진 유형 - 일반 사진 vs 시술 전/후 사진] 고객은 사진을 첨부할 때 '일반 사진' 또는 '시술 전/후 사진' 중 하나로 유형을 선택합니다. 아래 [사진 목록]에 각 사진이 어느 유형으로 등록됐는지 표시되어 있습니다.
+- '시술 전/후 사진'으로 등록됐다면 실제로 시술 부위/신체 일부의 전후 비교를 보여주는 사진인지 확인하세요. 맞으면 위 [승인 기준 - 사진]대로 판단합니다.
+- '시술 전/후 사진'으로 등록됐지만 실제로는 전후 비교 사진이 아닌 경우(예: 장비, 병원 내외부, 결제 화면 등), 위 [승인 기준 - 사진]의 다른 승인 대상(장비/병원/결제 화면/캡쳐 등)에 해당하는지 다시 확인하세요. 해당하면 relevant/identifiable을 그 기준대로 true로, flag는 null로 판정하고 reasoning에 "일반 사진으로 유형 변경 후 승인 가능"이라고 명시하세요. 그 기준에도 못 미치면(시술과 무관, 식별 불가, 미풍양속 위배) 유형 변경 없이 그대로 보류 판정하세요.
+- '일반 사진'으로 등록된 사진은 시술 전후 비교 사진이 아니어도 됩니다 — [승인 기준 - 사진]대로만 판단하고, 시술 전/후 사진 기준으로 격상 판단하지 마세요.
+
 후기 유형: ${reviewType}
 후기 내용: ${contentText}
-등록된 사진 수: ${photoCount}장 (아래 이미지 순서와 photos 배열 순서가 동일합니다)
+[사진 목록]
+${photoListSection}
+(아래 이미지 순서와 위 목록/photos 배열 순서가 동일합니다)
 
 각 사진과 후기 내용을 위 기준으로 개별 판단해 지정된 JSON 스키마 형식으로 결과를 제출하세요.`;
 }

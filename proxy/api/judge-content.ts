@@ -95,7 +95,7 @@ export function createHandler(client: GeminiLike) {
       contents: [
         {
           role: 'user',
-          parts: [{ text: buildPrompt(review_type, content_text, photos.length) }, ...imageParts],
+          parts: [{ text: buildPrompt(review_type, content_text, photos) }, ...imageParts],
         },
       ],
       config: {
