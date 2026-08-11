@@ -33,17 +33,19 @@ export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): Ju
   const contentNeedsReview = ai.content_flag === 'public_order';
   const contentHold = ai.content_flag === 'meaningless' || ai.content_relevant === false;
   const approvedPhotoCount = photo_results.filter((p) => p.decision === 'APPROVED').length;
+  // 사진을 아예 제출하지 않은 후기는 보류 대상이 아니다 — 제출한 사진이 전부 거부된 경우만 보류.
+  const noApprovedPhotoRemaining = input.photos.length > 0 && approvedPhotoCount === 0;
 
   const matched_rules: string[] = [];
   if (contentHold) matched_rules.push('ai-content-irrelevant-or-meaningless');
   if (contentNeedsReview) matched_rules.push('ai-content-public-order');
   if (hasPublicOrderPhoto) matched_rules.push('ai-photo-public-order');
-  if (approvedPhotoCount === 0) matched_rules.push('no-approved-photo-remaining');
+  if (noApprovedPhotoRemaining) matched_rules.push('no-approved-photo-remaining');
 
   let mock_judgment: JudgmentResult['mock_judgment'];
   if (contentNeedsReview || hasPublicOrderPhoto) {
     mock_judgment = 'NEEDS_REVIEW';
-  } else if (contentHold || approvedPhotoCount === 0) {
+  } else if (contentHold || noApprovedPhotoRemaining) {
     mock_judgment = 'AUTO_HOLD_CANDIDATE';
   } else {
     mock_judgment = 'APPROVE_CANDIDATE';

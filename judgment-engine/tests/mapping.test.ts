@@ -57,6 +57,21 @@ describe('buildResultFromAi', () => {
     ]);
   });
 
+  it('사진을 제출하지 않은 후기는 그것만으로 보류하지 않는다 (텍스트만 승인 기준 충족하면 APPROVE_CANDIDATE)', () => {
+    const input = inputWithPhotos([]);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [],
+      confidence: 0.9,
+      reasoning: '사진 없이 텍스트만 승인 기준 충족',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('APPROVE_CANDIDATE');
+    expect(result.matched_rules).not.toContain('no-approved-photo-remaining');
+    expect(result.photo_results).toEqual([]);
+  });
+
   it('남는 승인 사진이 없으면 AUTO_HOLD_CANDIDATE', () => {
     const input = inputWithPhotos(['https://x/1.jpg']);
     const ai: AiContentJudgment = {
