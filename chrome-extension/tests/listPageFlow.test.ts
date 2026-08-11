@@ -56,7 +56,11 @@ describe('runListPageFlow', () => {
     await runListPageFlow(table, sendMessage);
 
     expect(sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'JUDGE_LIST', rows: expect.arrayContaining([expect.objectContaining({ review_id: '1001' })]) })
+      expect.objectContaining({
+        type: 'JUDGE_LIST',
+        force: true,
+        rows: expect.arrayContaining([expect.objectContaining({ review_id: '1001' })]),
+      })
     );
     expect(table.querySelectorAll('.rvw-mock-badge').length).toBe(2);
   });

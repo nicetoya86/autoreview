@@ -46,7 +46,7 @@ export function parseListPage(table: HTMLTableElement): ListRowData[] {
     const review_type = REVIEW_TYPE_LABELS[typeText];
     if (!review_type) continue;
 
-    const photoCellIndex = headerIndex['사진'];
+    const photoCellIndex = headerIndex['사진 유형'];
     const imgs = photoCellIndex !== undefined ? Array.from(cells[photoCellIndex]?.querySelectorAll('img') ?? []) : [];
     const photos = imgs.map((img) => {
       const alt = img.getAttribute('alt')?.trim();

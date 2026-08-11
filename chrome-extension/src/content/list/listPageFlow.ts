@@ -20,6 +20,8 @@ function scrapeAllRowStatuses(table: HTMLTableElement): Array<{ review_id: strin
 /**
  * "이 페이지 모의판정 실행" 클릭 시 실행되는 순수 오케스트레이션.
  * chrome.runtime.sendMessage 자체는 index.ts에서 주입한다.
+ * 버튼 클릭은 명시적 사용자 행동이므로 지문이 같아도 항상 강제 재판정한다(force: true) —
+ * 지문 캐시는 새로고침으로 지워지지 않아, 그것만으로는 재판정 로직 수정 후 재검수가 불가능했다.
  */
 export async function runListPageFlow(
   table: HTMLTableElement,
@@ -27,7 +29,7 @@ export async function runListPageFlow(
 ): Promise<void> {
   const rows = parseListPage(table);
 
-  const judgeResponse = await sendMessage({ type: 'JUDGE_LIST', rows });
+  const judgeResponse = await sendMessage({ type: 'JUDGE_LIST', rows, force: true });
   if (judgeResponse.type === 'ERROR') {
     alert(`모의판정 실패: ${judgeResponse.message}`);
     return;

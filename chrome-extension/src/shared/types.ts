@@ -38,7 +38,7 @@ export interface CacheEntry {
 }
 
 export type ExtensionMessage =
-  | { type: 'JUDGE_LIST'; rows: ListRowData[] }
+  | { type: 'JUDGE_LIST'; rows: ListRowData[]; force?: boolean }
   | { type: 'JUDGE_DETAIL'; detail: DetailPageData }
   | { type: 'GET_CACHE'; reviewId: string }
   | { type: 'CAPTURE_STATUS'; rows: Array<{ review_id: string; review_status: ReviewStatusLabel }> }

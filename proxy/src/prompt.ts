@@ -17,6 +17,7 @@ export function buildPrompt(reviewType: string, contentText: string, photoCount:
 ${examplesSection}
 
 [승인 기준 - 사진] 시술 부위/신체 일부, 시술 관련 장비·약품, 병원 내외부, 앱 결제 화면, 관련 캡쳐 화면은 승인. 식별 불가하거나 미풍양속에 위배되거나 시술과 무관하면 보류.
+"식별 가능"은 사진에 찍힌 대상(신체 부위/장비/화면/장소 등)이 무엇인지 알아볼 수 있다는 뜻입니다 — 사람 얼굴이나 신원을 알아볼 수 있는지와는 무관합니다. 얼굴이 안 보이거나 가려져 있어도, 또는 사람이 전혀 나오지 않는 사진(장비, 병원 간판, 결제 화면 등)이어도 사진 내용 자체를 알아볼 수 있으면 identifiable: true 입니다. 사진이 너무 흐리거나 어둡거나 잘려서 무엇을 찍었는지조차 알 수 없을 때만 identifiable: false로 판단하세요.
 
 후기 유형: ${reviewType}
 후기 내용: ${contentText}
