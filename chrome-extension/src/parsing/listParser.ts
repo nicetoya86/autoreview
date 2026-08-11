@@ -36,8 +36,9 @@ export function parseListPage(table: HTMLTableElement): ListRowData[] {
 
   for (const row of rows) {
     const cells = row.cells;
+    // 검수 상태와 무관하게 페이지에 있는 모든 후기를 모의판정한다(이미 승인/보류/숨김 처리된 것도 재검증 대상).
     const statusText = cellText(cells, headerIndex['검수 상태']) as ReviewStatusLabel;
-    if (!KNOWN_STATUS_LABELS.includes(statusText) || statusText !== '대기') continue;
+    if (!KNOWN_STATUS_LABELS.includes(statusText)) continue;
 
     const reviewId = row.querySelector('button[data-id]')?.getAttribute('data-id');
     if (!reviewId) continue;

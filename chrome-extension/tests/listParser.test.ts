@@ -15,9 +15,20 @@ beforeAll(() => {
 });
 
 describe('parseListPage', () => {
-  it('대기 상태 행만 반환한다', () => {
+  it('검수 상태와 무관하게 알려진 상태 행을 모두 반환한다', () => {
     const rows = parseListPage(table);
-    expect(rows.map((r) => r.review_id)).toEqual(['1001', '1003']);
+    expect(rows.map((r) => r.review_id)).toEqual(['1001', '1002', '1003']);
+  });
+
+  it('전/후 사진은 declared_category BEFORE_AFTER로, 상태가 승인이어도 포함한다', () => {
+    const rows = parseListPage(table);
+    const row1002 = rows.find((r) => r.review_id === '1002')!;
+    expect(row1002.review_status).toBe('승인');
+    expect(row1002.review_type).toBe('TICKET_USE');
+    expect(row1002.photos).toEqual([
+      { url: 'https://cdn.example/photo2-before.jpg', declared_category: 'BEFORE_AFTER', before_after_slot: 'BEFORE' },
+      { url: 'https://cdn.example/photo2-after.jpg', declared_category: 'BEFORE_AFTER', before_after_slot: 'AFTER' },
+    ]);
   });
 
   it('사진 1장은 GENERAL로 파싱한다', () => {
