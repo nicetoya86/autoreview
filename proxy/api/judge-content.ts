@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
 import { buildPrompt } from '../src/prompt';
+import { guessMimeType } from '../src/mime';
+import { saveDebugCapture } from '../src/debugCapture';
 
 interface GeminiLike {
   models: {
@@ -32,14 +34,6 @@ const JUDGMENT_SCHEMA = {
   },
   required: ['content_relevant', 'content_flag', 'photos', 'confidence', 'reasoning'],
 } as const;
-
-function guessMimeType(url: string): string {
-  const ext = url.split('.').pop()?.toLowerCase().split('?')[0];
-  if (ext === 'png') return 'image/png';
-  if (ext === 'webp') return 'image/webp';
-  if (ext === 'gif') return 'image/gif';
-  return 'image/jpeg';
-}
 
 interface JudgeRequestBody {
   review_type: string;
@@ -78,9 +72,23 @@ export function createHandler(client: GeminiLike) {
 
     const { review_type, content_text, photos } = req.body;
 
-    const imageParts = photos.map((p) => ({
-      fileData: { fileUri: p.url, mimeType: guessMimeType(p.url) },
-    }));
+    let photoBuffers: Buffer[];
+    let imageParts: Array<{ inlineData: { data: string; mimeType: string } }>;
+    try {
+      photoBuffers = await Promise.all(
+        photos.map(async (p) => {
+          const imgRes = await fetch(p.url);
+          if (!imgRes.ok) throw new Error(`image fetch failed: ${imgRes.status}`);
+          return Buffer.from(await imgRes.arrayBuffer());
+        })
+      );
+      imageParts = photoBuffers.map((buf, i) => ({
+        inlineData: { data: buf.toString('base64'), mimeType: guessMimeType(photos[i].url) },
+      }));
+    } catch {
+      res.status(502).json({ error: 'failed to fetch review photo' });
+      return;
+    }
 
     const response = await client.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -109,6 +117,7 @@ export function createHandler(client: GeminiLike) {
       return;
     }
 
+    await saveDebugCapture(undefined, review_type, content_text, photos, photoBuffers, parsed);
     res.status(200).json(parsed);
   };
 }

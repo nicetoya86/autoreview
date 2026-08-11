@@ -9,10 +9,35 @@ import type { CacheEntry, ExtensionMessage, ExtensionResponse } from '../shared/
 export interface MessageHandlerDeps {
   cacheStore: CacheStore;
   aiConfig: AiAdapterConfig;
+  captureUrl?: string;
+}
+
+/**
+ * 모의판정 1건마다(AI 호출 여부 무관) 후기 내용/사진/판정 결과를 proxy에 보내 디스크에 캡처한다.
+ * 실패해도 판정 결과에 영향을 주지 않는다.
+ */
+async function captureMockJudgment(
+  captureUrl: string | undefined,
+  review_id: string,
+  review_type: string,
+  content_text: string,
+  photos: Array<{ url: string; declared_category: string }>,
+  judgment: unknown
+): Promise<void> {
+  if (!captureUrl) return;
+  try {
+    await fetch(captureUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ review_id, review_type, content_text, photos, judgment }),
+    });
+  } catch {
+    // 캡처 실패는 판정 결과에 영향을 주지 않는다
+  }
 }
 
 export async function handleMessage(message: ExtensionMessage, deps: MessageHandlerDeps): Promise<ExtensionResponse> {
-  const { cacheStore, aiConfig } = deps;
+  const { cacheStore, aiConfig, captureUrl } = deps;
 
   switch (message.type) {
     case 'JUDGE_LIST': {
@@ -20,10 +45,11 @@ export async function handleMessage(message: ExtensionMessage, deps: MessageHand
         message.rows.map(async (row): Promise<CacheEntry> => {
           const fingerprint = computeFingerprint(row);
           const existing = await cacheStore.get(row.review_id);
-          if (existing && existing.fingerprint === fingerprint) return existing;
+          if (!message.force && existing && existing.fingerprint === fingerprint) return existing;
 
           const duplicateFlags = computeListDuplicateFlags(row, message.rows);
           const result = await judgeListRow(row, duplicateFlags, aiConfig);
+          await captureMockJudgment(captureUrl, row.review_id, row.review_type, row.content_text, row.photos, result);
           const entry: CacheEntry = {
             review_id: row.review_id,
             tier: 'list',
@@ -50,6 +76,14 @@ export async function handleMessage(message: ExtensionMessage, deps: MessageHand
         same_receipt: false,
       };
       const result = await judgeDetail(message.detail, duplicateFlags, aiConfig);
+      await captureMockJudgment(
+        captureUrl,
+        message.detail.review_id,
+        message.detail.review_type,
+        message.detail.content_text,
+        message.detail.photos,
+        result
+      );
       const entry: CacheEntry = {
         review_id: message.detail.review_id,
         tier: 'detail',

@@ -78,6 +78,77 @@ describe('handleMessage', () => {
     expect(judgeReview).not.toHaveBeenCalled();
   });
 
+  it('JUDGE_LIST: force:true면 지문이 같아도 재판정한다', async () => {
+    const cacheStore = createCacheStore(fakeStorage());
+    const rows: ListRowData[] = [
+      {
+        review_id: 'r1',
+        review_type: 'TICKET_USE',
+        content_text: 'ok',
+        photos: [],
+        review_status: '대기',
+        modified_at: '2026-07-20',
+        author: '홍**',
+      },
+    ];
+
+    await handleMessage({ type: 'JUDGE_LIST', rows }, { cacheStore, aiConfig });
+    const { judgeReview } = await import('judgment-engine');
+    vi.mocked(judgeReview).mockClear();
+
+    await handleMessage({ type: 'JUDGE_LIST', rows, force: true }, { cacheStore, aiConfig });
+
+    expect(judgeReview).toHaveBeenCalledTimes(1);
+  });
+
+  it('JUDGE_LIST: captureUrl이 있으면 판정 결과를 캡처 엔드포인트로 전송한다', async () => {
+    const cacheStore = createCacheStore(fakeStorage());
+    const rows: ListRowData[] = [
+      {
+        review_id: 'r1',
+        review_type: 'TICKET_USE',
+        content_text: 'ok',
+        photos: [],
+        review_status: '대기',
+        modified_at: '2026-07-20',
+        author: '홍**',
+      },
+    ];
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true } as Response);
+
+    await handleMessage({ type: 'JUDGE_LIST', rows }, { cacheStore, aiConfig, captureUrl: 'https://proxy.example/api/debug-capture' });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://proxy.example/api/debug-capture',
+      expect.objectContaining({ method: 'POST' })
+    );
+    fetchMock.mockRestore();
+  });
+
+  it('JUDGE_LIST: 캡처 전송이 실패해도 판정 응답에는 영향이 없다', async () => {
+    const cacheStore = createCacheStore(fakeStorage());
+    const rows: ListRowData[] = [
+      {
+        review_id: 'r1',
+        review_type: 'TICKET_USE',
+        content_text: 'ok',
+        photos: [],
+        review_status: '대기',
+        modified_at: '2026-07-20',
+        author: '홍**',
+      },
+    ];
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network down'));
+
+    const response = await handleMessage(
+      { type: 'JUDGE_LIST', rows },
+      { cacheStore, aiConfig, captureUrl: 'https://proxy.example/api/debug-capture' }
+    );
+
+    expect(response).toMatchObject({ type: 'JUDGE_LIST_RESULT' });
+    fetchMock.mockRestore();
+  });
+
   it('JUDGE_DETAIL: tier=detail로 저장한다', async () => {
     const cacheStore = createCacheStore(fakeStorage());
     const detail: DetailPageData = {

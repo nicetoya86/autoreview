@@ -47,16 +47,49 @@ describe('judge-content handler', () => {
     };
     const res = fakeRes();
 
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) } as any);
+
     await handler(req, res);
 
+    expect(fetchMock).toHaveBeenCalledWith('https://x/1.jpg');
     expect(generateContent).toHaveBeenCalledWith(
       expect.objectContaining({
         model: 'gemini-2.5-flash',
         config: expect.objectContaining({ responseMimeType: 'application/json' }),
+        contents: [
+          expect.objectContaining({
+            parts: expect.arrayContaining([
+              expect.objectContaining({ inlineData: expect.objectContaining({ mimeType: 'image/jpeg' }) }),
+            ]),
+          }),
+        ],
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(judgment);
+
+    fetchMock.mockRestore();
+  });
+
+  it('후기 사진 fetch가 실패하면 502 반환', async () => {
+    const generateContent = vi.fn();
+    const handler = createHandler({ models: { generateContent } } as any);
+    const req: any = {
+      method: 'POST',
+      body: { review_type: 'TICKET_USE', content_text: 'ok', photos: [{ url: 'https://x/1.jpg', declared_category: 'GENERAL' }] },
+    };
+    const res = fakeRes();
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, status: 404 } as any);
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(generateContent).not.toHaveBeenCalled();
+
+    fetchMock.mockRestore();
   });
 
   it('Gemini가 빈 응답을 반환하면 502', async () => {
