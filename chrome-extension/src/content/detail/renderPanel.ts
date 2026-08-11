@@ -1,5 +1,6 @@
 import type { CacheEntry } from '../../shared/types';
 import type { MockJudgment } from 'judgment-engine';
+import { shouldShowReasoning } from '../../shared/judgmentDisplay';
 
 const LABELS: Record<MockJudgment, string> = {
   AUTO_HOLD_CANDIDATE: '🟡 자동보류후보',
@@ -20,8 +21,9 @@ export function renderPanel(container: HTMLElement, entry: CacheEntry | null, ha
 
   if (entry) {
     const tierNote = entry.tier === 'list' ? ' (예비 판정 — 목록 기준)' : '';
+    const reasoningPart = shouldShowReasoning(entry.result) ? ` / 상세 사유: ${entry.result.reasoning}` : '';
     const summary = container.ownerDocument.createElement('p');
-    summary.textContent = `${LABELS[entry.result.mock_judgment]}${tierNote} / 근거: ${entry.result.matched_rules.join(', ') || '없음'} / 신뢰도: ${entry.result.confidence}`;
+    summary.textContent = `${LABELS[entry.result.mock_judgment]}${tierNote} / 근거: ${entry.result.matched_rules.join(', ') || '없음'} / 신뢰도: ${entry.result.confidence}${reasoningPart}`;
     panel.appendChild(summary);
 
     const agree = container.ownerDocument.createElement('button');

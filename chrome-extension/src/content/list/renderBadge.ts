@@ -1,5 +1,6 @@
 import type { CacheEntry } from '../../shared/types';
 import type { MockJudgment } from 'judgment-engine';
+import { shouldShowReasoning } from '../../shared/judgmentDisplay';
 
 const LABELS: Record<MockJudgment, string> = {
   AUTO_HOLD_CANDIDATE: '🟡 자동보류후보',
@@ -20,7 +21,8 @@ export function renderBadge(rowEl: HTMLElement, entry: CacheEntry): void {
     rowEl.querySelector('.rvw-mock-tooltip')?.remove();
     const tooltip = rowEl.ownerDocument.createElement('div');
     tooltip.className = 'rvw-mock-tooltip';
-    tooltip.textContent = `근거: ${entry.result.matched_rules.join(', ') || '없음'} / 신뢰도: ${entry.result.confidence}`;
+    const reasoningPart = shouldShowReasoning(entry.result) ? ` / 상세 사유: ${entry.result.reasoning}` : '';
+    tooltip.textContent = `근거: ${entry.result.matched_rules.join(', ') || '없음'} / 신뢰도: ${entry.result.confidence}${reasoningPart}`;
     rowEl.appendChild(tooltip);
   });
 

@@ -70,4 +70,25 @@ describe('renderBadge', () => {
     expect(tooltip?.textContent).toContain('rule-a');
     expect(tooltip?.textContent).toContain('0.9');
   });
+
+  it('자동보류후보/검토필요면 툴팁에 상세 사유(reasoning)도 보여준다', () => {
+    renderBadge(rowEl, entry({ mock_judgment: 'NEEDS_REVIEW', reasoning: '검토필요 상세 사유입니다' }));
+    (rowEl.querySelector('.rvw-mock-badge') as HTMLElement).click();
+    expect(rowEl.querySelector('.rvw-mock-tooltip')?.textContent).toContain('검토필요 상세 사유입니다');
+  });
+
+  it('승인이어도 사진이 일반으로 유형 변경됐으면 상세 사유를 보여준다', () => {
+    renderBadge(
+      rowEl,
+      entry({ mock_judgment: 'APPROVE_CANDIDATE', reasoning: '사진은 일반 사진으로 유형 변경 후 승인 가능합니다' })
+    );
+    (rowEl.querySelector('.rvw-mock-badge') as HTMLElement).click();
+    expect(rowEl.querySelector('.rvw-mock-tooltip')?.textContent).toContain('유형 변경 후 승인 가능');
+  });
+
+  it('일반 승인이고 유형 변경도 없으면 상세 사유는 보여주지 않는다', () => {
+    renderBadge(rowEl, entry({ mock_judgment: 'APPROVE_CANDIDATE', reasoning: '아주 상세한 근거 텍스트' }));
+    (rowEl.querySelector('.rvw-mock-badge') as HTMLElement).click();
+    expect(rowEl.querySelector('.rvw-mock-tooltip')?.textContent).not.toContain('아주 상세한 근거 텍스트');
+  });
 });

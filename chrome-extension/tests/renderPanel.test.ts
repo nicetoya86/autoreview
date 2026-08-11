@@ -5,7 +5,7 @@ import type { CacheEntry } from '../src/shared/types';
 
 let container: HTMLElement;
 
-function entry(tier: CacheEntry['tier']): CacheEntry {
+function entry(tier: CacheEntry['tier'], resultOverrides: Partial<CacheEntry['result']> = {}): CacheEntry {
   return {
     review_id: 'r1',
     tier,
@@ -26,6 +26,7 @@ function entry(tier: CacheEntry['tier']): CacheEntry {
       reasoning: '근거 요약',
       ai_invoked: true,
       photo_results: [],
+      ...resultOverrides,
     },
     checked_at: '2026-07-20T00:00:00Z',
   };
@@ -61,6 +62,31 @@ describe('renderPanel', () => {
     expect(container.textContent).toContain('rule-a');
     button.click();
     expect(onJudge).toHaveBeenCalled();
+  });
+
+  it('자동보류후보/검토필요면 상세 사유(reasoning)를 함께 보여준다', () => {
+    renderPanel(container, entry('detail', { mock_judgment: 'AUTO_HOLD_CANDIDATE', reasoning: '보류 상세 사유입니다' }), {
+      onJudge: vi.fn(),
+      onFeedback: vi.fn(),
+    });
+    expect(container.textContent).toContain('보류 상세 사유입니다');
+  });
+
+  it('승인이어도 사진이 일반으로 유형 변경됐으면 상세 사유를 보여준다', () => {
+    renderPanel(
+      container,
+      entry('detail', { mock_judgment: 'APPROVE_CANDIDATE', reasoning: '사진은 일반 사진으로 유형 변경 후 승인 가능합니다' }),
+      { onJudge: vi.fn(), onFeedback: vi.fn() }
+    );
+    expect(container.textContent).toContain('유형 변경 후 승인 가능');
+  });
+
+  it('일반 승인이고 유형 변경도 없으면 상세 사유는 보여주지 않는다', () => {
+    renderPanel(container, entry('detail', { mock_judgment: 'APPROVE_CANDIDATE', reasoning: '아주 상세한 근거 텍스트' }), {
+      onJudge: vi.fn(),
+      onFeedback: vi.fn(),
+    });
+    expect(container.textContent).not.toContain('아주 상세한 근거 텍스트');
   });
 
   it('동의/비동의 버튼 클릭 시 onFeedback을 호출한다', () => {
