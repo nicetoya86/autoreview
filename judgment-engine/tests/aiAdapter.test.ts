@@ -67,6 +67,23 @@ describe('judgeContentWithAi', () => {
     ).rejects.toThrow('invalid AI response shape');
   });
 
+  it("photo flag가 'personal_info'면 정상 응답으로 파싱", async () => {
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: 'personal_info', confidence: 0.8 }],
+      confidence: 0.8,
+      reasoning: '전화번호 노출',
+    };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => fakeResponse,
+    } as unknown as Response);
+
+    const result = await judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content' });
+    expect(result).toEqual(fakeResponse);
+  });
+
   it('photos 배열에 malformed 요소가 있으면 에러를 던짐', async () => {
     const fakeResponse = {
       content_relevant: true,

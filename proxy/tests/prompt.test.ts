@@ -42,6 +42,13 @@ describe('buildPrompt', () => {
     expect(prompt).toContain('전화번호');
     expect(prompt).toContain('욕설');
   });
+
+  it('사진 승인 기준에 개인정보·민감정보 노출 시 보류 문구를 포함한다', () => {
+    const prompt = buildPrompt('RECEIPT', 'text', [GENERAL]);
+    const photoRuleIndex = prompt.indexOf('[승인 기준 - 사진]');
+    const photoRuleLine = prompt.slice(photoRuleIndex, prompt.indexOf('\n', photoRuleIndex));
+    expect(photoRuleLine).toContain('이름·휴대전화번호·이메일 주소 등 개인정보·민감정보가 노출되면 보류');
+  });
 });
 
 describe('buildPrompt - few-shot 예시', () => {
@@ -55,6 +62,10 @@ describe('buildPrompt - few-shot 예시', () => {
     expect(prompt).toContain('ㅁㄴㅇㄹㅁㄴㅇㄹㅁㄴㅇㄹ');
     expect(prompt).toContain('ㅈ어ㅣㅏㅈ버ㅓ아ㅣㅁㄴㅇ');
     expect(prompt).toContain('제 이름은 김민수예요, 여기 병원 자주 갈 것 같아요.');
+    expect(prompt).toContain(
+      '피부 고민에 도움되셨나요? 상담은 충분했는지, 시술 후 통증, 시술시간, 다운타임, 병원의 인상 등 도움되는 생생한 후기를 들려주세요.'
+    );
+    expect(prompt).toContain('여신티켓은 고객님의 개인정보를 안전하게 취급하는데 최선을 다합니다.');
   });
 
   it('각 예시가 올바른 승인/보류 라벨과 짝지어 렌더링된다 (라벨 스왑 회귀 방지)', () => {
@@ -66,6 +77,12 @@ describe('buildPrompt - few-shot 예시', () => {
     expect(prompt).toContain('- "ㅁㄴㅇㄹㅁㄴㅇㄹㅁㄴㅇㄹ" → 보류');
     expect(prompt).toContain('- "ㅈ어ㅣㅏㅈ버ㅓ아ㅣㅁㄴㅇ" → 보류');
     expect(prompt).toContain('- "제 이름은 김민수예요, 여기 병원 자주 갈 것 같아요." → 보류');
+    expect(prompt).toContain(
+      '- "피부 고민에 도움되셨나요? 상담은 충분했는지, 시술 후 통증, 시술시간, 다운타임, 병원의 인상 등 도움되는 생생한 후기를 들려주세요." → 보류'
+    );
+    expect(prompt).toContain(
+      '- "여신티켓은 고객님의 개인정보를 안전하게 취급하는데 최선을 다합니다. 예약 및 상담 관리를 위해 아래 업체에 개인정보가 제공됩니다." → 보류'
+    );
   });
 
   it('예시 섹션이 [승인 기준 - 후기 내용] 바로 다음, [승인 기준 - 사진]보다 앞에 온다 (사진 판정에 텍스트 예시가 섞이지 않도록)', () => {
@@ -77,5 +94,16 @@ describe('buildPrompt - few-shot 예시', () => {
     expect(exampleIndex).toBeGreaterThan(contentRuleIndex);
     expect(photoRuleIndex).toBeGreaterThan(exampleIndex);
     expect(prompt).toContain('시술 부위/신체 일부, 시술 관련 장비·약품, 병원 내외부, 앱 결제 화면, 관련 캡쳐 화면은 승인');
+  });
+
+  it('"병원 내외부" 승인은 배너/병원명/의료기기/약품/파우더룸/팜플렛/의료진 중 하나 이상 필요하다는 기준을 포함한다', () => {
+    const prompt = buildPrompt('TICKET_USE', '아무 내용', []);
+    expect(prompt).toContain('시술 배너, 병원명(간판/로고), 의료기기, 약품, 파우더룸, 시술 관련 팜플렛/안내문, 의료진(의사·간호사 등)');
+    expect(prompt).toContain('병원인지 특정할 수 없는 공간만 나온 사진은 시술과 무관한 것으로 보고 보류');
+  });
+
+  it('리셉션/데스크만으로는 승인되지 않는다는 기준을 포함한다', () => {
+    const prompt = buildPrompt('TICKET_USE', '아무 내용', []);
+    expect(prompt).toContain('리셉션 데스크나 대기실 소파처럼 그 자체만으로는 병원 여부를 특정할 수 없는 공간도 위 요소가 함께 나오지 않으면 보류');
   });
 });

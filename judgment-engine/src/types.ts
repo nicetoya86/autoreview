@@ -62,7 +62,7 @@ export interface AiPhotoJudgment {
   url: string;
   relevant: boolean;
   identifiable: boolean;
-  flag: 'unidentifiable' | 'public_order' | 'irrelevant' | null;
+  flag: 'unidentifiable' | 'public_order' | 'irrelevant' | 'personal_info' | null;
   confidence: number;
 }
 

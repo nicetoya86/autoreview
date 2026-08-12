@@ -63,7 +63,11 @@ function validateAiResponse(data: unknown): AiContentJudgment {
       typeof photo.relevant !== 'boolean' ||
       typeof photo.identifiable !== 'boolean' ||
       typeof photo.confidence !== 'number' ||
-      (photo.flag !== 'unidentifiable' && photo.flag !== 'public_order' && photo.flag !== 'irrelevant' && photo.flag !== null)
+      (photo.flag !== 'unidentifiable' &&
+        photo.flag !== 'public_order' &&
+        photo.flag !== 'irrelevant' &&
+        photo.flag !== 'personal_info' &&
+        photo.flag !== null)
     ) {
       throw new Error('invalid AI response shape');
     }

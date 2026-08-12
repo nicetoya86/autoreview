@@ -23,7 +23,7 @@ const JUDGMENT_SCHEMA = {
           url: { type: 'string' },
           relevant: { type: 'boolean' },
           identifiable: { type: 'boolean' },
-          flag: { type: 'string', enum: ['unidentifiable', 'public_order', 'irrelevant'], nullable: true },
+          flag: { type: 'string', enum: ['unidentifiable', 'public_order', 'irrelevant', 'personal_info'], nullable: true },
           confidence: { type: 'number' },
         },
         required: ['url', 'relevant', 'identifiable', 'flag', 'confidence'],

@@ -57,6 +57,20 @@ describe('buildResultFromAi', () => {
     ]);
   });
 
+  it('사진에 개인정보(personal_info) 플래그가 있으면 그 사진만 HIDDEN', () => {
+    const input = inputWithPhotos(['https://x/1.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: 'personal_info', confidence: 0.8 }],
+      confidence: 0.8,
+      reasoning: '전화번호가 노출됨',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('AUTO_HOLD_CANDIDATE');
+    expect(result.photo_results).toEqual([{ url: 'https://x/1.jpg', decision: 'HIDDEN', reason: 'personal_info' }]);
+  });
+
   it('사진을 제출하지 않은 후기는 그것만으로 보류하지 않는다 (텍스트만 승인 기준 충족하면 APPROVE_CANDIDATE)', () => {
     const input = inputWithPhotos([]);
     const ai: AiContentJudgment = {
