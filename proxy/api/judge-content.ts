@@ -38,7 +38,8 @@ const JUDGMENT_SCHEMA = {
 interface JudgeRequestBody {
   review_type: string;
   content_text: string;
-  photos: Array<{ url: string; declared_category: string }>;
+  photos: Array<{ url: string; declared_category: string; before_after_slot?: 'BEFORE' | 'AFTER' }>;
+  procedure?: { is_before_after_exempt: boolean };
 }
 
 function isValidBody(body: unknown): body is JudgeRequestBody {
@@ -70,7 +71,7 @@ export function createHandler(client: GeminiLike) {
       return;
     }
 
-    const { review_type, content_text, photos } = req.body;
+    const { review_type, content_text, photos, procedure } = req.body;
 
     let photoBuffers: Buffer[];
     let imageParts: Array<{ inlineData: { data: string; mimeType: string } }>;
@@ -95,7 +96,7 @@ export function createHandler(client: GeminiLike) {
       contents: [
         {
           role: 'user',
-          parts: [{ text: buildPrompt(review_type, content_text, photos) }, ...imageParts],
+          parts: [{ text: buildPrompt(review_type, content_text, photos, procedure) }, ...imageParts],
         },
       ],
       config: {

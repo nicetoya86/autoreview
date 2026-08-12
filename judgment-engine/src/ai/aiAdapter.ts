@@ -10,7 +10,9 @@ export interface AiAdapterConfig {
  * 브라우저 확장(background)과 Node.js 양쪽에서 동일하게 동작한다.
  */
 export async function judgeContentWithAi(
-  input: Pick<ReviewInput, 'review_type' | 'content_text' | 'photos'>,
+  input: Pick<ReviewInput, 'review_type' | 'content_text' | 'photos'> & {
+    procedure?: ReviewInput['procedure'];
+  },
   config: AiAdapterConfig
 ): Promise<AiContentJudgment> {
   const controller = new AbortController();
@@ -23,7 +25,12 @@ export async function judgeContentWithAi(
       body: JSON.stringify({
         review_type: input.review_type,
         content_text: input.content_text,
-        photos: input.photos.map((p) => ({ url: p.url, declared_category: p.declared_category })),
+        photos: input.photos.map((p) => ({
+          url: p.url,
+          declared_category: p.declared_category,
+          ...(p.before_after_slot ? { before_after_slot: p.before_after_slot } : {}),
+        })),
+        ...(input.procedure ? { procedure: input.procedure } : {}),
       }),
       signal: controller.signal,
     });

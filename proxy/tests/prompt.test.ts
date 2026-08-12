@@ -30,6 +30,42 @@ describe('buildPrompt', () => {
     expect(prompt).toContain('격상 판단하지 마세요');
   });
 
+  it('전/후 사진 목록에 각 사진의 전후 구분을 표시한다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [
+      { declared_category: 'BEFORE_AFTER', before_after_slot: 'BEFORE' },
+      { declared_category: 'BEFORE_AFTER', before_after_slot: 'AFTER' },
+    ]);
+    expect(prompt).toContain('1번: 시술 전/후 사진 (전)');
+    expect(prompt).toContain('2번: 시술 전/후 사진 (후)');
+  });
+
+  it('전 또는 후 중 한쪽 사진만 등록되면 일반 사진으로 유형 변경해서 판정하라는 문구를 포함한다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [{ declared_category: 'BEFORE_AFTER', before_after_slot: 'BEFORE' }]);
+    expect(prompt).toContain('전/후 중 한쪽 사진만 첨부');
+    expect(prompt).toContain('무조건 일반 사진으로 유형 변경');
+  });
+
+  it('전/후 사진이 모두 등록되면 한쪽만 등록됐을 때의 안내 문구를 포함하지 않는다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [
+      { declared_category: 'BEFORE_AFTER', before_after_slot: 'BEFORE' },
+      { declared_category: 'BEFORE_AFTER', before_after_slot: 'AFTER' },
+    ]);
+    expect(prompt).not.toContain('전/후 중 한쪽 사진만 첨부');
+  });
+
+  it('시술 전/후 촬영이 불가능한 예외 시술이면 예외 안내 문구를 포함하고, 한쪽 사진만 등록됐다는 문구는 포함하지 않는다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [{ declared_category: 'BEFORE_AFTER', before_after_slot: 'BEFORE' }], {
+      is_before_after_exempt: true,
+    });
+    expect(prompt).toContain('시술 전/후 촬영이 불가능한 예외 시술');
+    expect(prompt).not.toContain('전/후 중 한쪽 사진만 첨부');
+  });
+
+  it('예외 시술이 아니면 예외 안내 문구를 포함하지 않는다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [BEFORE_AFTER], { is_before_after_exempt: false });
+    expect(prompt).not.toContain('예외 시술로 등록되어 있습니다');
+  });
+
   it('승인/보류 기준 문구를 포함한다', () => {
     const prompt = buildPrompt('RECEIPT', 'text', [GENERAL]);
     expect(prompt).toContain('미풍양속');
