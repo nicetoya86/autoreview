@@ -14,11 +14,14 @@ export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): Ju
     // "image_1.jpg" 같은 자체 라벨을 반환하는 사례 관찰), url 동등 비교 대신 프롬프트가
     // 보장하는 배열 순서(index)로 매칭한다.
     const judged = ai.photos[index];
-    if (!judged || !judged.relevant || !judged.identifiable || judged.flag) {
+    // 병원명이 다른 사진(hospital_name_match: false)은 relevant/flag와 무관하게 무조건 보류 —
+    // 프롬프트 지시문만으로는 모델이 무시하는 경우가 실측에서 확인됐다.
+    const hospitalMismatch = !!input.hospital_name && judged?.hospital_name_match === false;
+    if (!judged || hospitalMismatch || !judged.relevant || !judged.identifiable || judged.flag) {
       photo_results.push({
         url: photo.url,
         decision: 'HIDDEN',
-        reason: judged?.flag ?? 'irrelevant',
+        reason: hospitalMismatch ? 'irrelevant' : (judged?.flag ?? 'irrelevant'),
       });
     } else {
       photo_results.push({ url: photo.url, decision: 'APPROVED' });

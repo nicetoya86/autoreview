@@ -65,6 +65,10 @@ export interface AiPhotoJudgment {
   identifiable: boolean;
   flag: 'unidentifiable' | 'public_order' | 'irrelevant' | 'personal_info' | null;
   confidence: number;
+  // 사진 속 병원명이 후기 등록 병원명과 일치하는지: true=일치, false=다른 병원, null=병원명이 안 보이는 사진.
+  // 프롬프트 지시문만으로는 모델이 무시하는 경우가 있어(실측 확인), 이 필드로 강제하고
+  // 최종 승인/보류는 mapping.ts에서 결정한다.
+  hospital_name_match?: boolean | null;
 }
 
 export interface AiContentJudgment {

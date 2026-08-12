@@ -37,6 +37,37 @@ describe('buildResultFromAi', () => {
     expect(result.ai_invoked).toBe(true);
   });
 
+  it('hospital_name_match가 false면 relevant/flag가 승인이어도 HIDDEN 처리', () => {
+    const input = { ...inputWithPhotos(['https://x/1.jpg']), hospital_name: '다올림성형외과의원' };
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9, hospital_name_match: false },
+      ],
+      confidence: 0.9,
+      reasoning: '병원 간판이 다름',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.photo_results).toEqual([{ url: 'https://x/1.jpg', decision: 'HIDDEN', reason: 'irrelevant' }]);
+    expect(result.mock_judgment).toBe('AUTO_HOLD_CANDIDATE');
+  });
+
+  it('hospital_name이 등록되지 않은 후기는 hospital_name_match가 false여도 무시한다', () => {
+    const input = inputWithPhotos(['https://x/1.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9, hospital_name_match: false },
+      ],
+      confidence: 0.9,
+      reasoning: 'ok',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.photo_results).toEqual([{ url: 'https://x/1.jpg', decision: 'APPROVED' }]);
+  });
+
   it('사진 2장 중 1장만 무관하면 그 사진만 HIDDEN이고 전체는 승인', () => {
     const input = inputWithPhotos(['https://x/1.jpg', 'https://x/2.jpg']);
     const ai: AiContentJudgment = {

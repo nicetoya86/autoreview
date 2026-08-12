@@ -69,13 +69,14 @@ describe('buildPrompt', () => {
   it('병원명이 주어지면 후기 등록 병원명과 병원 사진 대조 안내를 포함한다', () => {
     const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL], undefined, '다올림성형외과의원');
     expect(prompt).toContain('후기 등록 병원명: 다올림성형외과의원');
-    expect(prompt).toContain('다른 병원이면 이 후기와 무관한 사진이므로');
+    expect(prompt).toContain('hospital_name_match');
+    expect(prompt).toContain('무관한 건물/타병원 사진');
   });
 
   it('병원명이 없으면 병원 사진 대조 안내를 포함하지 않는다', () => {
     const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL]);
     expect(prompt).not.toContain('후기 등록 병원명');
-    expect(prompt).not.toContain('다른 병원이면');
+    expect(prompt).not.toContain('hospital_name_match');
   });
 
   it('승인/보류 기준 문구를 포함한다', () => {

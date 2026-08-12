@@ -75,7 +75,10 @@ function validateAiResponse(data: unknown): AiContentJudgment {
         photo.flag !== 'public_order' &&
         photo.flag !== 'irrelevant' &&
         photo.flag !== 'personal_info' &&
-        photo.flag !== null)
+        photo.flag !== null) ||
+      (photo.hospital_name_match !== undefined &&
+        photo.hospital_name_match !== null &&
+        typeof photo.hospital_name_match !== 'boolean')
     ) {
       throw new Error('invalid AI response shape');
     }
