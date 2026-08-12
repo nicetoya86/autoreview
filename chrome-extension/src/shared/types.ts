@@ -9,6 +9,7 @@ export interface ListRowData {
   review_type: ReviewType;
   content_text: string;
   photos: ReviewInput['photos'];
+  hospital_name?: string;
   review_status: ReviewStatusLabel;
   modified_at: string;
   author: string;
@@ -19,6 +20,7 @@ export interface DetailPageData {
   review_type: ReviewType;
   content_text: string;
   photos: ReviewInput['photos'];
+  hospital_name?: string;
   procedure: ReviewInput['procedure'];
   receipt?: ReviewInput['receipt'];
   hospital_requested_takedown: boolean;

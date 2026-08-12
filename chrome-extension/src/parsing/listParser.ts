@@ -64,6 +64,7 @@ export function parseListPage(table: HTMLTableElement): ListRowData[] {
       review_type,
       content_text: cellText(cells, headerIndex['후기 내용']),
       photos,
+      hospital_name: cellText(cells, headerIndex['병원명']) || undefined,
       review_status: statusText,
       modified_at: cellText(cells, headerIndex['수정 일시']),
       author: cellText(cells, headerIndex['작성자']),

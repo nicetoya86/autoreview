@@ -31,6 +31,7 @@ export interface ReviewInput {
   review_type: ReviewType;
   content_text: string;
   photos: ReviewPhoto[];
+  hospital_name?: string;
   procedure: {
     name?: string;
     is_before_after_exempt: boolean;

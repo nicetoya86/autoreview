@@ -45,6 +45,7 @@ describe('parseListPage', () => {
     expect(row1001.author).toBe('홍**');
     expect(row1001.content_text).toBe('시술 후 만족스러웠어요');
     expect(row1001.modified_at).toBe('2026-07-20 10:00');
+    expect(row1001.hospital_name).toBe('OO병원');
   });
 
   it('사진이 없는 행도 스킵하지 않고 빈 배열로 파싱한다', () => {

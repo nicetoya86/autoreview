@@ -161,6 +161,27 @@ describe('judgeContentWithAi', () => {
     expect(parsedBody).not.toHaveProperty('procedure');
   });
 
+  it('POST 요청 본문에 hospital_name을 포함해서 전송', async () => {
+    const inputWithHospital = { ...sampleInput, hospital_name: '다올림성형외과의원' };
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: 'ok',
+    };
+    let capturedBody: string | undefined;
+    global.fetch = vi.fn(async (url: string, options: RequestInit) => {
+      capturedBody = options.body as string;
+      return { ok: true, json: async () => fakeResponse } as unknown as Response;
+    });
+
+    await judgeContentWithAi(inputWithHospital, { proxyUrl: 'https://proxy.example/api/judge-content' });
+
+    const parsedBody = JSON.parse(capturedBody!);
+    expect(parsedBody.hospital_name).toBe('다올림성형외과의원');
+  });
+
   it('타임아웃이 발생하면 fetch가 중단되고 에러를 던짐', async () => {
     vi.useFakeTimers();
     try {

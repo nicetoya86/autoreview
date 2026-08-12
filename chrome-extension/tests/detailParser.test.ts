@@ -50,6 +50,11 @@ describe('parseDetailPage', () => {
     expect(data.content_text).toBe('시술 만족\n상담도 만족');
   });
 
+  it('병원명을 파싱한다', () => {
+    const data = parseDetailPage(root, '1001');
+    expect(data.hospital_name).toBe('다올림성형외과의원');
+  });
+
   it('브라질리언 제모는 전/후 촬영 예외 시술로 처리한다', () => {
     const data = parseDetailPage(root, '1001');
     expect(data.procedure).toEqual({ name: '브라질리언 제모', is_before_after_exempt: true });

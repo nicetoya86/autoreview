@@ -102,7 +102,7 @@ export function parseDetailPage(root: ParentNode, reviewId: string): DetailPageD
   // 텍스트 검수는 둘 다 대상이므로 있는 걸 전부 합쳐서 판정에 넘긴다.
   // '받은 시술'/'수정 일시' 라벨은 실사용 화면에서 아직 정확한 위치를 확인하지 못했다 —
   // 못 찾으면 undefined/빈 문자열로 안전하게 떨어진다(Task 19 스모크 테스트에서 재확인 필요).
-  const fields = extractLabeledFields(root, ['후기유형', '수정 일시', '받은 시술']);
+  const fields = extractLabeledFields(root, ['후기유형', '수정 일시', '받은 시술', '병원명']);
   const review_type = REVIEW_TYPE_LABELS[fields['후기유형']] ?? 'TICKET_USE';
 
   const photos = parsePhotos(root);
@@ -118,6 +118,7 @@ export function parseDetailPage(root: ParentNode, reviewId: string): DetailPageD
     review_type,
     content_text,
     photos,
+    hospital_name: fields['병원명'] || undefined,
     procedure: {
       name: procedureName,
       is_before_after_exempt: procedureName ? BEFORE_AFTER_EXEMPT_PROCEDURES.includes(procedureName) : false,

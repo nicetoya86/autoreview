@@ -66,6 +66,18 @@ describe('buildPrompt', () => {
     expect(prompt).not.toContain('예외 시술로 등록되어 있습니다');
   });
 
+  it('병원명이 주어지면 후기 등록 병원명과 병원 사진 대조 안내를 포함한다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL], undefined, '다올림성형외과의원');
+    expect(prompt).toContain('후기 등록 병원명: 다올림성형외과의원');
+    expect(prompt).toContain('다른 병원이면 이 후기와 무관한 사진이므로');
+  });
+
+  it('병원명이 없으면 병원 사진 대조 안내를 포함하지 않는다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL]);
+    expect(prompt).not.toContain('후기 등록 병원명');
+    expect(prompt).not.toContain('다른 병원이면');
+  });
+
   it('승인/보류 기준 문구를 포함한다', () => {
     const prompt = buildPrompt('RECEIPT', 'text', [GENERAL]);
     expect(prompt).toContain('미풍양속');

@@ -12,6 +12,7 @@ export async function judgeListRow(
     review_type: row.review_type,
     content_text: row.content_text,
     photos: row.photos,
+    hospital_name: row.hospital_name,
     // 목록 단계에서는 '받은 시술' 텍스트를 신뢰성 있게 파싱할 수 없어 예외 없음으로 보수 처리한다.
     procedure: { is_before_after_exempt: false },
     receipt:
@@ -41,6 +42,7 @@ export async function judgeDetail(
     review_type: detail.review_type,
     content_text: detail.content_text,
     photos: detail.photos,
+    hospital_name: detail.hospital_name,
     procedure: detail.procedure,
     receipt: detail.receipt,
     duplicate_flags: duplicateFlags,
