@@ -26,7 +26,10 @@ describe('parseDetailPage', () => {
 
   it("'상담 후기 내용' 라벨도 content_text로 읽는다", () => {
     const dom = new JSDOM(
-      '<div class="review-detail"><dl><dt>후기유형</dt><dd>상담 후기</dd><dt>상담 후기 내용</dt><dd>상담 잘 받았어요</dd></dl></div>'
+      '<div class="review-detail">' +
+        '<div class="col grid"><div><label class="form-label">후기유형</label></div><div><div class="form-control">상담 후기</div></div></div>' +
+        '<div class="flex-1"><div><h4>상담 후기 내용</h4></div><textarea readonly>상담 잘 받았어요</textarea></div>' +
+        '</div>'
     );
     const consultRoot = dom.window.document.querySelector('.review-detail') as HTMLElement;
     const data = parseDetailPage(consultRoot, '2001');
@@ -36,8 +39,11 @@ describe('parseDetailPage', () => {
 
   it("'시술 후기 내용'과 '상담 후기 내용'이 둘 다 있으면 합쳐서 판정 대상으로 삼는다", () => {
     const dom = new JSDOM(
-      '<div class="review-detail"><dl><dt>후기유형</dt><dd>상담 후기</dd>' +
-        '<dt>시술 후기 내용</dt><dd>시술 만족</dd><dt>상담 후기 내용</dt><dd>상담도 만족</dd></dl></div>'
+      '<div class="review-detail">' +
+        '<div class="col grid"><div><label class="form-label">후기유형</label></div><div><div class="form-control">상담 후기</div></div></div>' +
+        '<div class="flex-1"><div><h4>시술 후기 내용</h4></div><textarea readonly>시술 만족</textarea></div>' +
+        '<div class="flex-1"><div><h4>상담 후기 내용</h4></div><textarea readonly>상담도 만족</textarea></div>' +
+        '</div>'
     );
     const bothRoot = dom.window.document.querySelector('.review-detail') as HTMLElement;
     const data = parseDetailPage(bothRoot, '2002');
@@ -49,9 +55,25 @@ describe('parseDetailPage', () => {
     expect(data.procedure).toEqual({ name: '브라질리언 제모', is_before_after_exempt: true });
   });
 
-  it('사진을 파싱한다', () => {
+  it('사진을 파싱한다 (유사도 검사 위젯 사진은 제외)', () => {
     const data = parseDetailPage(root, '1001');
     expect(data.photos).toEqual([{ url: 'https://cdn.example/photo1.jpg', declared_category: 'GENERAL' }]);
+  });
+
+  it("'시술 전'/'시술 후' 그룹으로 나뉜 사진은 각각 BEFORE_AFTER slot으로 파싱한다", () => {
+    const dom = new JSDOM(
+      '<div class="review-detail">' +
+        '<div data-value="photo"><div><p class="font-semibold">후기 사진</p></div>' +
+        '<div class="flex flex-col gap-2"><p class="text-base font-semibold">시술 전</p><div><img src="https://cdn.example/before.jpg" /></div></div>' +
+        '<div class="flex flex-col gap-2"><p class="text-base font-semibold">시술 후</p><div><img src="https://cdn.example/after.jpg" /></div></div>' +
+        '</div></div>'
+    );
+    const beforeAfterRoot = dom.window.document.querySelector('.review-detail') as HTMLElement;
+    const data = parseDetailPage(beforeAfterRoot, '3001');
+    expect(data.photos).toEqual([
+      { url: 'https://cdn.example/before.jpg', declared_category: 'BEFORE_AFTER', before_after_slot: 'BEFORE' },
+      { url: 'https://cdn.example/after.jpg', declared_category: 'BEFORE_AFTER', before_after_slot: 'AFTER' },
+    ]);
   });
 
   it('영수증 필드는 입력값/등록값이 둘 다 있으면 일치 여부를 계산한다', () => {

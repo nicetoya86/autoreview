@@ -18,7 +18,7 @@
       <td>OO병원</td>
       <td>영수증 후기</td>
       <td>대기</td>
-      <td><img src="https://cdn.example/photo1.jpg" alt="" /></td>
+      <td><div class="relative inline-block border border-solid border-gray-300 rounded-md"><img alt="review-image" src="https://cdn.example/photo1.jpg" /></div></td>
       <td>시술 후 만족스러웠어요</td>
       <td>2026-07-20 10:00</td>
       <td>홍**</td>
@@ -30,8 +30,14 @@
       <td>티켓 사용 후기</td>
       <td>승인</td>
       <td>
-        <img src="https://cdn.example/photo2-before.jpg" alt="전" />
-        <img src="https://cdn.example/photo2-after.jpg" alt="후" />
+        <div class="relative inline-block border border-solid border-gray-300 rounded-md">
+          <img alt="review-image" src="https://cdn.example/photo2-before.jpg" />
+          <div class="absolute left-0 bottom-0 w-[15px] h-[15px] font-semibold text-xs text-white rounded-bl-md bg-black">전</div>
+        </div>
+        <div class="relative inline-block border border-solid border-gray-300 rounded-md">
+          <img alt="review-image" src="https://cdn.example/photo2-after.jpg" />
+          <div class="absolute left-0 bottom-0 w-[15px] h-[15px] font-semibold text-xs text-white rounded-bl-md bg-pink">후</div>
+        </div>
       </td>
       <td>붓기가 금방 빠졌어요</td>
       <td>2026-07-19 09:00</td>

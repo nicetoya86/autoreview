@@ -47,12 +47,15 @@ export function parseListPage(table: HTMLTableElement): ListRowData[] {
     const review_type = REVIEW_TYPE_LABELS[typeText];
     if (!review_type) continue;
 
+    // 실사용 화면 확인 결과 img의 alt는 항상 "review-image" 고정값이고, 전/후 구분은
+    // img와 같은 wrapper div 안에 있는 배지(<div class="absolute ...">전|후</div>) 텍스트에 있다.
+    // 일반 사진은 배지 div가 없다.
     const photoCellIndex = headerIndex['사진 유형'];
     const imgs = photoCellIndex !== undefined ? Array.from(cells[photoCellIndex]?.querySelectorAll('img') ?? []) : [];
     const photos = imgs.map((img) => {
-      const alt = img.getAttribute('alt')?.trim();
-      if (alt === '전') return { url: img.src, declared_category: 'BEFORE_AFTER' as const, before_after_slot: 'BEFORE' as const };
-      if (alt === '후') return { url: img.src, declared_category: 'BEFORE_AFTER' as const, before_after_slot: 'AFTER' as const };
+      const badgeText = img.parentElement?.querySelector('div')?.textContent?.trim();
+      if (badgeText === '전') return { url: img.src, declared_category: 'BEFORE_AFTER' as const, before_after_slot: 'BEFORE' as const };
+      if (badgeText === '후') return { url: img.src, declared_category: 'BEFORE_AFTER' as const, before_after_slot: 'AFTER' as const };
       return { url: img.src, declared_category: 'GENERAL' as const };
     });
 

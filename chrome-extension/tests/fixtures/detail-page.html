@@ -1,16 +1,39 @@
 <div class="review-detail">
-  <dl>
-    <dt>후기유형</dt>
-    <dd>영수증 후기</dd>
-    <dt>시술 후기 내용</dt>
-    <dd>시술 후 만족스러웠어요</dd>
-    <dt>수정 일시</dt>
-    <dd>2026-07-20 10:00</dd>
-    <dt>받은 시술</dt>
-    <dd>브라질리언 제모</dd>
-  </dl>
-  <div class="photos">
-    <img src="https://cdn.example/photo1.jpg" alt="" />
+  <div class="col grid self-start items-center">
+    <div class="flex flex-row gap-1 items-center"><label class="form-label text-dark whitespace-nowrap">후기유형</label></div>
+    <div class="flex flex-row items-center gap-4 flex-1"><div class="form-control form-control-solid text-ellipsis min-w-[20px]"><div class="my-[1px] min-h-6 flex flex-row gap-2 items-center">영수증 후기</div></div></div>
+  </div>
+  <div class="col grid self-start items-center">
+    <div class="flex flex-row gap-1 items-center"><label class="form-label text-dark whitespace-nowrap">받은 시술</label></div>
+    <div class="flex flex-row items-center gap-4 flex-1"><div class="form-control form-control-solid text-ellipsis min-w-[20px]"><div class="my-[1px] min-h-6 flex flex-row gap-2 items-center">브라질리언 제모</div></div></div>
+  </div>
+  <div class="col grid self-start items-center">
+    <div class="flex flex-row gap-1 items-center"><label class="form-label text-dark whitespace-nowrap">수정 일시</label></div>
+    <div class="flex flex-row items-center gap-4 flex-1"><div class="form-control form-control-solid text-ellipsis min-w-[20px]"><div class="my-[1px] min-h-6 flex flex-row gap-2 items-center">2026-07-20 10:00</div></div></div>
+  </div>
+  <div class="flex-1">
+    <div class="flex items-center gap-[20px] mb-[8px]"><h4 class="text-[14px] font-bold text-dark">시술 후기 내용</h4></div>
+    <textarea class="h-[100px] form-control form-control-solid" readonly>시술 후 만족스러웠어요</textarea>
+  </div>
+  <div data-value="photo" class="bg-white p-5 flex-none flex justify-between flex-col overflow-hidden">
+    <div>
+      <div class="flex flex-row mb-2 justify-between items-center"><p class="font-semibold">후기 사진</p></div>
+      <div class="overflow-y-scroll">
+        <div class="flex flex-row gap-3 flex-wrap">
+          <div class="relative rounded-md overflow-hidden"><img src="https://cdn.example/photo1.jpg" /></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div data-value="photo" class="bg-white p-5 flex-none flex justify-between flex-col overflow-hidden">
+    <div>
+      <div class="flex flex-row mb-2 justify-between items-center"><p class="font-semibold">유사도가 높은 포토 후기 이미지</p></div>
+      <div class="overflow-y-scroll">
+        <div class="flex flex-row gap-3 flex-wrap">
+          <div class="relative rounded-md overflow-hidden"><img src="https://cdn.example/other-review-photo.jpg" /></div>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="receipt-info">
     <div class="receipt-field">
