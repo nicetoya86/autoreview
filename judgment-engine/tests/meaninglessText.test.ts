@@ -21,4 +21,8 @@ describe('isMeaninglessText', () => {
   it('시술 관련 정상 후기는 false', () => {
     expect(isMeaninglessText('시술 후 붓기도 금방 가라앉고 만족스러웠어요')).toBe(false);
   });
+
+  it('문장 앞부분의 강조성 반복 문자는 false (뒤에 실제 내용 있음)', () => {
+    expect(isMeaninglessText('개개개개개개개개개별로였던곳 의사 싸가지 개레전드')).toBe(false);
+  });
 });

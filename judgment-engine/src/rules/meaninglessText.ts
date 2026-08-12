@@ -1,5 +1,5 @@
 const JAMO_ONLY = /^[ㄱ-ㅎㅏ-ㅣ\s]+$/; // 자음/모음만
-const REPEATED_CHAR = /(.)\1{4,}/; // 같은 문자 5회 이상 반복
+const REPEATED_CHAR = /^(.)\1{4,}$/; // 전체가 같은 문자 5회 이상 반복인 경우만 (문장 중 강조 표현은 제외)
 const KNOWN_FILLER_PHRASES = ['가나다라마바사'];
 
 /**
