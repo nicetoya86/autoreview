@@ -113,17 +113,17 @@ describe('computeListDuplicateFlags', () => {
     expect(flags.same_photo).toBe(false);
   });
 
-  it('작성 일시가 몇 분 이내로만 다르면(연속 등록 묶음) 같은 시점으로 보고 중복 처리한다', async () => {
+  it('작성 일시는 시간이 달라도 날짜만 같으면 같은 작성일로 보고 중복 처리한다', async () => {
     const earlier = row({ review_id: '1001', written_at: '2026-07-20 09:33' });
-    const target = row({ review_id: '1002', written_at: '2026-07-20 09:34' });
+    const target = row({ review_id: '1002', written_at: '2026-07-20 23:59' });
     const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_written_at).toBe(true);
     expect(flags.same_customer).toBe(true);
   });
 
-  it('작성 일시가 허용 범위(5분)를 넘게 다르면 나머지가 같아도 중복 아님', async () => {
-    const earlier = row({ review_id: '1001', written_at: '2026-07-20 09:00' });
-    const target = row({ review_id: '1002', written_at: '2026-07-20 09:10' });
+  it('작성 일시의 날짜(연월일)가 다르면 나머지가 같아도 중복 아님', async () => {
+    const earlier = row({ review_id: '1001', written_at: '2026-07-20 09:33' });
+    const target = row({ review_id: '1002', written_at: '2026-07-21 09:33' });
     const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_written_at).toBe(false);
     expect(flags.same_customer).toBe(false);

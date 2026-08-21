@@ -14,25 +14,23 @@ function isEarlier(reviewIdA: string, reviewIdB: string): boolean {
   return reviewIdA < reviewIdB;
 }
 
-// 실측(1068854 vs 1068855/1068856) 확인 결과 같은 무더기로 연속 등록된 후기끼리도
-// "작성 일시"가 분 단위로 1분씩 갈라지는 경우가 있었다(09:33 vs 09:34) — 분 단위
-// 완전일치를 요구하면 이런 연속 등록 묶음의 일부를 놓친다. 그래서 몇 분 이내 차이는
-// 같은 작성 시점으로 본다. 형식을 못 읽으면(예상 못한 포맷) 안전하게 완전일치로 되돌린다.
-const WRITTEN_AT_TOLERANCE_MINUTES = 5;
-const WRITTEN_AT_PATTERN = /^(\d{4})[.\-](\d{2})[.\-](\d{2})[ T](\d{2}):(\d{2})$/;
+// "작성 일시"는 연월일만 같으면 같은 작성 시점으로 본다 — 시간은 조건에서 제외한다
+// (실측에서 같은 무더기로 연속 등록된 후기끼리도 분 단위 시각이 갈리는 경우가 있었음).
+// 형식을 못 읽으면(예상 못한 포맷) 안전하게 완전일치로 되돌린다.
+const WRITTEN_AT_DATE_PATTERN = /^(\d{4})[.\-](\d{2})[.\-](\d{2})/;
 
-function parseWrittenAtMinutes(writtenAt: string): number | null {
-  const m = writtenAt.trim().match(WRITTEN_AT_PATTERN);
+function writtenAtDateKey(writtenAt: string): string | null {
+  const m = writtenAt.trim().match(WRITTEN_AT_DATE_PATTERN);
   if (!m) return null;
-  const [, year, month, day, hour, minute] = m;
-  return Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)) / 60000;
+  const [, year, month, day] = m;
+  return `${year}-${month}-${day}`;
 }
 
 function sameWrittenAt(a: string, b: string): boolean {
-  const minutesA = parseWrittenAtMinutes(a);
-  const minutesB = parseWrittenAtMinutes(b);
-  if (minutesA === null || minutesB === null) return a === b;
-  return Math.abs(minutesA - minutesB) <= WRITTEN_AT_TOLERANCE_MINUTES;
+  const dateA = writtenAtDateKey(a);
+  const dateB = writtenAtDateKey(b);
+  if (dateA === null || dateB === null) return a === b;
+  return dateA === dateB;
 }
 
 function nonPhotoFieldsMatch(a: ListRowData, b: ListRowData): boolean {
