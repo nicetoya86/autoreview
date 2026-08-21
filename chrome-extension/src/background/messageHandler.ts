@@ -52,7 +52,7 @@ export async function handleMessage(message: ExtensionMessage, deps: MessageHand
           continue;
         }
 
-        const duplicateFlags = computeListDuplicateFlags(row, message.rows);
+        const duplicateFlags = await computeListDuplicateFlags(row, message.rows);
         const result = await judgeListRow(row, duplicateFlags, aiConfig);
         await captureMockJudgment(captureUrl, row.review_id, row.review_type, row.content_text, row.photos, result);
         const entry: CacheEntry = {

@@ -23,4 +23,7 @@ export default defineManifest({
     },
   ],
   permissions: ['storage'],
+  // 후기 사진 재업로드 시 CDN이 새 URL을 발급해도 실제 이미지 바이트를 해시해
+  // 중복 여부를 비교하려면 이 CDN 도메인에 대해 CORS 없이 fetch할 권한이 필요하다.
+  host_permissions: ['https://dd1pyb8167x99.cloudfront.net/*'],
 });
