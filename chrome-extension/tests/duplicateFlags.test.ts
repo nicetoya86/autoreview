@@ -113,12 +113,27 @@ describe('computeListDuplicateFlags', () => {
     expect(flags.same_photo).toBe(false);
   });
 
-  it('작성 일시가 다르면 나머지가 같아도 중복 아님', async () => {
-    const earlier = row({ review_id: '1001', written_at: '2026-07-20 09:55' });
-    const target = row({ review_id: '1002', written_at: '2026-07-20 09:56' });
+  it('작성 일시가 몇 분 이내로만 다르면(연속 등록 묶음) 같은 시점으로 보고 중복 처리한다', async () => {
+    const earlier = row({ review_id: '1001', written_at: '2026-07-20 09:33' });
+    const target = row({ review_id: '1002', written_at: '2026-07-20 09:34' });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
+    expect(flags.same_written_at).toBe(true);
+    expect(flags.same_customer).toBe(true);
+  });
+
+  it('작성 일시가 허용 범위(5분)를 넘게 다르면 나머지가 같아도 중복 아님', async () => {
+    const earlier = row({ review_id: '1001', written_at: '2026-07-20 09:00' });
+    const target = row({ review_id: '1002', written_at: '2026-07-20 09:10' });
     const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_written_at).toBe(false);
     expect(flags.same_customer).toBe(false);
+  });
+
+  it('작성 일시 형식을 못 읽으면 완전일치로 되돌아간다', async () => {
+    const earlier = row({ review_id: '1001', written_at: '알수없음' });
+    const target = row({ review_id: '1002', written_at: '알수없음' });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
+    expect(flags.same_written_at).toBe(true);
   });
 
   it('이벤트 정보가 다르면 나머지가 같아도 중복 아님', async () => {
