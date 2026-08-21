@@ -37,10 +37,11 @@ afterEach(() => {
 });
 
 describe('computeListDuplicateFlags', () => {
-  it('작성자+병원명+작성일시+이벤트정보+내용+사진이 모두 같은 다른 행이 있으면 중복 플래그를 true로 채운다', async () => {
-    const target = row({ review_id: 'r1' });
-    const other = row({ review_id: 'r2' });
-    const flags = await computeListDuplicateFlags(target, [other]);
+  // review_id '1001'(먼저 등록) / '1002'(나중에 등록) — 나중 것만 보류 대상이 되어야 한다.
+  it('작성자+병원명+작성일시+이벤트정보+내용+사진이 모두 같은 더 이른 후기가 있으면(나중에 등록된 쪽) 중복 플래그를 true로 채운다', async () => {
+    const earlier = row({ review_id: '1001' });
+    const target = row({ review_id: '1002' });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_customer).toBe(true);
     expect(flags.same_hospital_name).toBe(true);
     expect(flags.same_written_at).toBe(true);
@@ -49,14 +50,22 @@ describe('computeListDuplicateFlags', () => {
     expect(flags.same_photo).toBe(true);
   });
 
+  it('더 먼저 등록된 후기(review_id가 더 작음) 쪽은 나중에 등록된 중복이 있어도 플래그가 false다 (원본은 승인 유지)', async () => {
+    const target = row({ review_id: '1001' });
+    const later = row({ review_id: '1002' });
+    const flags = await computeListDuplicateFlags(target, [later]);
+    expect(flags.same_customer).toBe(false);
+    expect(flags.same_photo).toBe(false);
+  });
+
   it('사진 URL이 재업로드로 달라도 실제 바이트가 같으면 중복으로 본다', async () => {
     mockPhotoContents({
       'https://x/reupload-a.jpg': 'reupload-bytes',
       'https://x/reupload-b.jpg': 'reupload-bytes',
     });
-    const target = row({ review_id: 'r1', photos: [{ url: 'https://x/reupload-a.jpg', declared_category: 'GENERAL' }] });
-    const other = row({ review_id: 'r2', photos: [{ url: 'https://x/reupload-b.jpg', declared_category: 'GENERAL' }] });
-    const flags = await computeListDuplicateFlags(target, [other]);
+    const earlier = row({ review_id: '1001', photos: [{ url: 'https://x/reupload-a.jpg', declared_category: 'GENERAL' }] });
+    const target = row({ review_id: '1002', photos: [{ url: 'https://x/reupload-b.jpg', declared_category: 'GENERAL' }] });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_photo).toBe(true);
   });
 
@@ -65,64 +74,64 @@ describe('computeListDuplicateFlags', () => {
       'https://x/diff-a.jpg': 'photo-a-bytes',
       'https://x/diff-b.jpg': 'photo-b-bytes',
     });
-    const target = row({ review_id: 'r1', photos: [{ url: 'https://x/diff-a.jpg', declared_category: 'GENERAL' }] });
-    const other = row({ review_id: 'r2', photos: [{ url: 'https://x/diff-b.jpg', declared_category: 'GENERAL' }] });
-    const flags = await computeListDuplicateFlags(target, [other]);
+    const earlier = row({ review_id: '1001', photos: [{ url: 'https://x/diff-a.jpg', declared_category: 'GENERAL' }] });
+    const target = row({ review_id: '1002', photos: [{ url: 'https://x/diff-b.jpg', declared_category: 'GENERAL' }] });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_photo).toBe(false);
     expect(flags.same_customer).toBe(false);
   });
 
   it('사진 fetch가 실패하면 보수적으로 다른 사진으로 취급한다', async () => {
-    const target = row({ review_id: 'r1', photos: [{ url: 'https://x/fail-a.jpg', declared_category: 'GENERAL' }] });
-    const other = row({ review_id: 'r2', photos: [{ url: 'https://x/fail-b.jpg', declared_category: 'GENERAL' }] });
+    const earlier = row({ review_id: '1001', photos: [{ url: 'https://x/fail-a.jpg', declared_category: 'GENERAL' }] });
+    const target = row({ review_id: '1002', photos: [{ url: 'https://x/fail-b.jpg', declared_category: 'GENERAL' }] });
     global.fetch = vi.fn(async () => ({ ok: false }) as Response) as unknown as typeof fetch;
-    const flags = await computeListDuplicateFlags(target, [other]);
+    const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_photo).toBe(false);
   });
 
   it('작성 일시가 다르면 나머지가 같아도 중복 아님', async () => {
-    const target = row({ review_id: 'r1', written_at: '2026-07-20 09:55' });
-    const other = row({ review_id: 'r2', written_at: '2026-07-20 09:56' });
-    const flags = await computeListDuplicateFlags(target, [other]);
+    const earlier = row({ review_id: '1001', written_at: '2026-07-20 09:55' });
+    const target = row({ review_id: '1002', written_at: '2026-07-20 09:56' });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_written_at).toBe(false);
     expect(flags.same_customer).toBe(false);
   });
 
   it('이벤트 정보가 다르면 나머지가 같아도 중복 아님', async () => {
-    const target = row({ review_id: 'r1', event_info: '이벤트A' });
-    const other = row({ review_id: 'r2', event_info: '이벤트B' });
-    const flags = await computeListDuplicateFlags(target, [other]);
+    const earlier = row({ review_id: '1001', event_info: '이벤트A' });
+    const target = row({ review_id: '1002', event_info: '이벤트B' });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_procedure_event).toBe(false);
     expect(flags.same_customer).toBe(false);
   });
 
   it('이벤트 정보가 둘 다 없으면(undefined) 그 조건은 동일하다고 본다', async () => {
-    const target = row({ review_id: 'r1', event_info: undefined });
-    const other = row({ review_id: 'r2', event_info: undefined });
-    const flags = await computeListDuplicateFlags(target, [other]);
+    const earlier = row({ review_id: '1001', event_info: undefined });
+    const target = row({ review_id: '1002', event_info: undefined });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_procedure_event).toBe(true);
     expect(flags.procedure_event_exists).toBe(false);
   });
 
   it('작성자가 다르면 중복 아님', async () => {
-    const target = row({ review_id: 'r1', author: '홍**' });
-    const other = row({ review_id: 'r2', author: '김**' });
-    const flags = await computeListDuplicateFlags(target, [other]);
+    const earlier = row({ review_id: '1001', author: '김**' });
+    const target = row({ review_id: '1002', author: '홍**' });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_customer).toBe(false);
   });
 
   it('병원명이 다르면 나머지가 같아도 중복 아님', async () => {
-    const target = row({ review_id: 'r1', hospital_name: '루비의원' });
-    const other = row({ review_id: 'r2', hospital_name: '여신의원' });
-    const flags = await computeListDuplicateFlags(target, [other]);
+    const earlier = row({ review_id: '1001', hospital_name: '여신의원' });
+    const target = row({ review_id: '1002', hospital_name: '루비의원' });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_hospital_name).toBe(false);
     expect(flags.same_customer).toBe(false);
   });
 
   it('내용이 다르면 중복 아님', async () => {
-    const target = row({ review_id: 'r1', content_text: 'A' });
-    const other = row({ review_id: 'r2', content_text: 'B' });
-    const flags = await computeListDuplicateFlags(target, [other]);
+    const earlier = row({ review_id: '1001', content_text: 'A' });
+    const target = row({ review_id: '1002', content_text: 'B' });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_content).toBe(false);
   });
 
@@ -133,9 +142,9 @@ describe('computeListDuplicateFlags', () => {
   });
 
   it('영수증 플래그는 목록 단계에서 항상 false(미확인)', async () => {
-    const target = row({ review_id: 'r1' });
-    const other = row({ review_id: 'r2' });
-    const flags = await computeListDuplicateFlags(target, [other]);
+    const earlier = row({ review_id: '1001' });
+    const target = row({ review_id: '1002' });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
     expect(flags.same_receipt).toBe(false);
   });
 });

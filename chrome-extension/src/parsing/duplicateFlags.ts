@@ -2,6 +2,18 @@ import type { DuplicateFlags } from 'judgment-engine';
 import type { ListRowData } from '../shared/types';
 import { hashPhoto } from '../shared/photoHash';
 
+// 중복 그룹 내에서 어느 후기를 "원본(승인 유지)"으로 볼지 정해야 한다 — PRD 8.4는
+// 중복이면 1건만 승인, 나머지는 보류라고 규정한다. written_at은 중복 판정 조건에
+// 이미 포함돼 그룹 내에서 전부 같으므로 순서를 가릴 수 없어, review_id가 작을수록
+// 먼저 등록된 후기라고 보고 그 후기만 남기고 review_id가 더 큰(나중에 등록된) 후기만
+// 보류 대상으로 삼는다.
+function isEarlier(reviewIdA: string, reviewIdB: string): boolean {
+  const a = Number(reviewIdA);
+  const b = Number(reviewIdB);
+  if (!Number.isNaN(a) && !Number.isNaN(b)) return a < b;
+  return reviewIdA < reviewIdB;
+}
+
 function nonPhotoFieldsMatch(a: ListRowData, b: ListRowData): boolean {
   return (
     a.author === b.author &&
@@ -39,10 +51,14 @@ async function samePhotoSet(a: ListRowData, b: ListRowData): Promise<boolean> {
  */
 export async function computeListDuplicateFlags(target: ListRowData, others: ListRowData[]): Promise<DuplicateFlags> {
   // 사진 해시 비교는 fetch가 필요해 비싸므로, 다른 필드가 전부 같은 후보로 먼저 좁힌 뒤에만 수행한다.
-  const fieldCandidates = others.filter((o) => o.review_id !== target.review_id && nonPhotoFieldsMatch(o, target));
+  // 나(target)보다 나중에 등록된 후보는 "원본" 자격이 없어 여기서는 볼 필요가 없다 —
+  // 그 후보 자신이 판정될 때 나를 원본으로 찾아 스스로 보류 처리된다.
+  const earlierFieldCandidates = others.filter(
+    (o) => o.review_id !== target.review_id && nonPhotoFieldsMatch(o, target) && isEarlier(o.review_id, target.review_id)
+  );
 
   let duplicate: ListRowData | undefined;
-  for (const candidate of fieldCandidates) {
+  for (const candidate of earlierFieldCandidates) {
     if (await samePhotoSet(candidate, target)) {
       duplicate = candidate;
       break;
