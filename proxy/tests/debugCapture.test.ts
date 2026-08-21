@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { rm } from 'node:fs/promises';
+import { rm, readdir, readFile } from 'node:fs/promises';
 import { createHandler } from '../api/debug-capture';
 
 const TEST_CAPTURE_DIR = '.debug-captures-test';
@@ -78,5 +78,37 @@ describe('debug-capture handler', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('https://x/1.jpg');
     expect(res.status).toHaveBeenCalledWith(204);
+  });
+
+  it('작성자/병원명/작성일시/이벤트정보/중복플래그를 함께 보내면 review.json에 그대로 저장한다', async () => {
+    vi.stubEnv('DEBUG_CAPTURE_DIR', TEST_CAPTURE_DIR);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) } as any);
+    const handler = createHandler();
+    const req: any = {
+      method: 'POST',
+      body: {
+        review_id: 'r1',
+        review_type: 'TICKET_USE',
+        content_text: 'ok',
+        photos: [{ url: 'https://x/1.jpg' }],
+        judgment: { mock_judgment: 'AUTO_HOLD_CANDIDATE', ai_invoked: false, matched_rules: ['8.4-duplicate'] },
+        author: '홍**',
+        hospital_name: '루비의원',
+        written_at: '2026-07-20 09:55',
+        event_info: '이벤트A',
+        duplicate_flags: { same_customer: true },
+      },
+    };
+    const res = fakeRes();
+
+    await handler(req, res);
+
+    const [caseDir] = await readdir(TEST_CAPTURE_DIR);
+    const saved = JSON.parse(await readFile(`${TEST_CAPTURE_DIR}/${caseDir}/review.json`, 'utf-8'));
+    expect(saved.author).toBe('홍**');
+    expect(saved.hospital_name).toBe('루비의원');
+    expect(saved.written_at).toBe('2026-07-20 09:55');
+    expect(saved.event_info).toBe('이벤트A');
+    expect(saved.duplicate_flags).toEqual({ same_customer: true });
   });
 });

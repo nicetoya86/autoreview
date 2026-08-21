@@ -7,6 +7,11 @@ interface CaptureRequestBody {
   content_text: string;
   photos: Array<{ url: string }>;
   judgment: unknown;
+  author?: string;
+  hospital_name?: string;
+  written_at?: string;
+  event_info?: string;
+  duplicate_flags?: unknown;
 }
 
 function isValidBody(body: unknown): body is CaptureRequestBody {
@@ -47,7 +52,8 @@ export function createHandler() {
       return;
     }
 
-    const { review_id, review_type, content_text, photos, judgment } = req.body;
+    const { review_id, review_type, content_text, photos, judgment, author, hospital_name, written_at, event_info, duplicate_flags } =
+      req.body;
 
     const fetched = await Promise.all(
       photos.map(async (p) => {
@@ -68,7 +74,8 @@ export function createHandler() {
       content_text,
       captured.map((c) => c.photo),
       captured.map((c) => c.buffer),
-      judgment
+      judgment,
+      { author, hospital_name, written_at, event_info, duplicate_flags }
     );
 
     res.status(204).end();

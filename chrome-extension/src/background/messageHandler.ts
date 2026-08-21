@@ -16,20 +16,29 @@ export interface MessageHandlerDeps {
  * 모의판정 1건마다(AI 호출 여부 무관) 후기 내용/사진/판정 결과를 proxy에 보내 디스크에 캡처한다.
  * 실패해도 판정 결과에 영향을 주지 않는다.
  */
+interface CaptureMeta {
+  author?: string;
+  hospital_name?: string;
+  written_at?: string;
+  event_info?: string;
+  duplicate_flags?: unknown;
+}
+
 async function captureMockJudgment(
   captureUrl: string | undefined,
   review_id: string,
   review_type: string,
   content_text: string,
   photos: Array<{ url: string; declared_category: string }>,
-  judgment: unknown
+  judgment: unknown,
+  meta?: CaptureMeta
 ): Promise<void> {
   if (!captureUrl) return;
   try {
     await fetch(captureUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ review_id, review_type, content_text, photos, judgment }),
+      body: JSON.stringify({ review_id, review_type, content_text, photos, ...meta, judgment }),
     });
   } catch {
     // 캡처 실패는 판정 결과에 영향을 주지 않는다
@@ -54,7 +63,13 @@ export async function handleMessage(message: ExtensionMessage, deps: MessageHand
 
         const duplicateFlags = await computeListDuplicateFlags(row, message.rows);
         const result = await judgeListRow(row, duplicateFlags, aiConfig);
-        await captureMockJudgment(captureUrl, row.review_id, row.review_type, row.content_text, row.photos, result);
+        await captureMockJudgment(captureUrl, row.review_id, row.review_type, row.content_text, row.photos, result, {
+          author: row.author,
+          hospital_name: row.hospital_name,
+          written_at: row.written_at,
+          event_info: row.event_info,
+          duplicate_flags: duplicateFlags,
+        });
         const entry: CacheEntry = {
           review_id: row.review_id,
           tier: 'list',
@@ -87,7 +102,8 @@ export async function handleMessage(message: ExtensionMessage, deps: MessageHand
         message.detail.review_type,
         message.detail.content_text,
         message.detail.photos,
-        result
+        result,
+        { hospital_name: message.detail.hospital_name, duplicate_flags: duplicateFlags }
       );
       const entry: CacheEntry = {
         review_id: message.detail.review_id,
