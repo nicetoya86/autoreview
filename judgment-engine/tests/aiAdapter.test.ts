@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { judgeContentWithAi } from '../src/ai/aiAdapter';
+import { judgeContentWithAi, SAFETY_BLOCK_ERROR_MESSAGE } from '../src/ai/aiAdapter';
 
 const sampleInput = {
   review_type: 'TICKET_USE' as const,
@@ -161,6 +161,101 @@ describe('judgeContentWithAi', () => {
     expect(parsedBody).not.toHaveProperty('procedure');
   });
 
+  it('review_id가 있으면 POST 요청 본문에 review_id를 포함해서 전송', async () => {
+    const inputWithReviewId = { ...sampleInput, review_id: '1158902' };
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: 'ok',
+    };
+    let capturedBody: string | undefined;
+    global.fetch = vi.fn(async (url: string, options: RequestInit) => {
+      capturedBody = options.body as string;
+      return { ok: true, json: async () => fakeResponse } as unknown as Response;
+    });
+
+    await judgeContentWithAi(inputWithReviewId, { proxyUrl: 'https://proxy.example/api/judge-content' });
+
+    expect(JSON.parse(capturedBody!)).toMatchObject({ review_id: '1158902' });
+  });
+
+  it('review_id가 없으면 요청 본문에 review_id를 포함하지 않는다', async () => {
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: 'ok',
+    };
+    let capturedBody: string | undefined;
+    global.fetch = vi.fn(async (url: string, options: RequestInit) => {
+      capturedBody = options.body as string;
+      return { ok: true, json: async () => fakeResponse } as unknown as Response;
+    });
+
+    await judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content' });
+
+    expect(JSON.parse(capturedBody!)).not.toHaveProperty('review_id');
+  });
+
+  it('profanityCandidate가 true면 POST 요청 본문에 profanity_candidate를 포함해서 전송', async () => {
+    const inputWithProfanityCandidate = { ...sampleInput, profanityCandidate: true };
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: 'ok',
+    };
+    let capturedBody: string | undefined;
+    global.fetch = vi.fn(async (url: string, options: RequestInit) => {
+      capturedBody = options.body as string;
+      return { ok: true, json: async () => fakeResponse } as unknown as Response;
+    });
+
+    await judgeContentWithAi(inputWithProfanityCandidate, { proxyUrl: 'https://proxy.example/api/judge-content' });
+
+    expect(JSON.parse(capturedBody!)).toMatchObject({ profanity_candidate: true });
+  });
+
+  it('profanityCandidate가 없으면 요청 본문에 profanity_candidate를 포함하지 않는다', async () => {
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: 'ok',
+    };
+    let capturedBody: string | undefined;
+    global.fetch = vi.fn(async (url: string, options: RequestInit) => {
+      capturedBody = options.body as string;
+      return { ok: true, json: async () => fakeResponse } as unknown as Response;
+    });
+
+    await judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content' });
+
+    expect(JSON.parse(capturedBody!)).not.toHaveProperty('profanity_candidate');
+  });
+
+  it("content_flag이 'profanity'면 정상 응답으로 파싱", async () => {
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: 'profanity',
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: '욕설 확인됨',
+    };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => fakeResponse,
+    } as unknown as Response);
+
+    const result = await judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content' });
+    expect(result).toEqual(fakeResponse);
+  });
+
   it('POST 요청 본문에 hospital_name을 포함해서 전송', async () => {
     const inputWithHospital = { ...sampleInput, hospital_name: '다올림성형외과의원' };
     const fakeResponse = {
@@ -182,31 +277,59 @@ describe('judgeContentWithAi', () => {
     expect(parsedBody.hospital_name).toBe('다올림성형외과의원');
   });
 
-  it('타임아웃이 발생하면 fetch가 중단되고 에러를 던짐', async () => {
-    vi.useFakeTimers();
-    try {
-      let abortWasCalled = false;
-      global.fetch = vi.fn((url: string, options: RequestInit) => {
-        const signal = options.signal as AbortSignal;
-        // Return a promise that rejects when abort fires
-        return new Promise((resolve, reject) => {
-          const abortHandler = () => {
-            abortWasCalled = true;
-            reject(new DOMException('The operation was aborted', 'AbortError'));
-          };
-          signal.addEventListener('abort', abortHandler);
-          // Never resolve on its own
+  it('타임아웃이 발생하면 fetch가 중단되고 에러를 던짐 (재시도 후에도 타임아웃되면 최종 실패)', async () => {
+    let abortCount = 0;
+    global.fetch = vi.fn((url: string, options: RequestInit) => {
+      const signal = options.signal as AbortSignal;
+      // Return a promise that rejects when abort fires
+      return new Promise((resolve, reject) => {
+        signal.addEventListener('abort', () => {
+          abortCount++;
+          reject(new DOMException('The operation was aborted', 'AbortError'));
         });
+        // Never resolve on its own
       });
+    });
 
-      const promise = judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content', timeoutMs: 100 });
+    await expect(
+      judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content', timeoutMs: 20 })
+    ).rejects.toThrow();
+    expect(abortCount).toBe(2);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
 
-      vi.advanceTimersByTime(100);
+  it('프록시가 세이프티 정책 차단(blocked_by_safety_filter)을 반환하면 재시도 없이 즉시 에러를 던짐', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({ error: 'blocked_by_safety_filter', block_reason: 'OTHER' }),
+    } as unknown as Response);
 
-      await expect(promise).rejects.toThrow();
-      expect(abortWasCalled).toBe(true);
-    } finally {
-      vi.useRealTimers();
-    }
+    await expect(
+      judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content' })
+    ).rejects.toThrow(SAFETY_BLOCK_ERROR_MESSAGE);
+    expect(global.fetch).toHaveBeenCalledTimes(1); // 결정적 차단이므로 재시도하지 않는다
+  });
+
+  it('첫 시도가 실패해도 재시도가 성공하면 정상 결과를 반환', async () => {
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: 'ok',
+    };
+    let callCount = 0;
+    global.fetch = vi.fn(async () => {
+      callCount++;
+      if (callCount === 1) {
+        throw new Error('network blip');
+      }
+      return { ok: true, json: async () => fakeResponse } as unknown as Response;
+    });
+
+    const result = await judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content' });
+    expect(result).toEqual(fakeResponse);
+    expect(callCount).toBe(2);
   });
 });

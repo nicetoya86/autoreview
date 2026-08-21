@@ -3,7 +3,6 @@ import { isDuplicate } from './duplicate';
 import { checkReceiptObjective } from './receipt';
 import { isMeaninglessText } from './meaninglessText';
 import { containsPii } from './containsPii';
-import { containsProfanity } from './containsProfanity';
 
 export type ObjectiveResult =
   | { decided: true; mock_judgment: MockJudgment; matched_rules: string[]; reasoning: string }
@@ -56,14 +55,9 @@ export function runObjectiveRules(input: ReviewInput): ObjectiveResult {
     };
   }
 
-  if (containsProfanity(input.content_text)) {
-    return {
-      decided: true,
-      mock_judgment: 'AUTO_HOLD_CANDIDATE',
-      matched_rules: ['contains-profanity'],
-      reasoning: '후기 내용에 욕설/비속어가 포함된 것으로 판단됨',
-    };
-  }
+  // 욕설/비속어는 여기서 바로 확정하지 않는다 — korcen의 근사매칭이 오탐을 내는 사례가
+  // 확인됐다(예: "새로운 지점이"). engine.ts가 이 신호를 AI 판단에 넘겨 실제 욕설인지
+  // 재확인시키고, 최종 결과는 AI의 content_flag('profanity')로만 확정한다.
 
   if (receiptCheck.unconfirmed) {
     return {

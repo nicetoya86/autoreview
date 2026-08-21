@@ -8,6 +8,8 @@ import type { AiContentJudgment, JudgmentResult, PhotoResult, ReviewInput } from
 export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): JudgmentResult {
   const photo_results: PhotoResult[] = [];
   const photoConfidences: number[] = [];
+  let approvedBeforeCount = 0;
+  let approvedAfterCount = 0;
 
   input.photos.forEach((photo, index) => {
     // AI가 입력 URL 문자열을 그대로 반환한다고 보장할 수 없으므로(Gemini 스모크 테스트에서
@@ -25,6 +27,10 @@ export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): Ju
       });
     } else {
       photo_results.push({ url: photo.url, decision: 'APPROVED' });
+      if (photo.declared_category === 'BEFORE_AFTER') {
+        if (photo.before_after_slot === 'BEFORE') approvedBeforeCount++;
+        if (photo.before_after_slot === 'AFTER') approvedAfterCount++;
+      }
     }
     // Collect confidence from any matched photo (judged is truthy), regardless of APPROVED/HIDDEN decision
     if (judged) {
@@ -34,21 +40,35 @@ export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): Ju
 
   const hasPublicOrderPhoto = photo_results.some((p) => p.decision === 'HIDDEN' && p.reason === 'public_order');
   const contentNeedsReview = ai.content_flag === 'public_order';
+  const contentProfanity = ai.content_flag === 'profanity';
   const contentHold = ai.content_flag === 'meaningless' || ai.content_relevant === false;
   const approvedPhotoCount = photo_results.filter((p) => p.decision === 'APPROVED').length;
   // 사진을 아예 제출하지 않은 후기는 보류 대상이 아니다 — 제출한 사진이 전부 거부된 경우만 보류.
   const noApprovedPhotoRemaining = input.photos.length > 0 && approvedPhotoCount === 0;
 
+  // 전/후 양쪽 슬롯이 모두 등록된 진짜 전후 비교 후기(예외 시술 제외)는 두 슬롯 중
+  // 어느 한쪽이라도 승인 사진이 남지 않으면(그 슬롯의 유일한 사진이 거부된 경우 등)
+  // 남은 사진만으로 승인 처리하지 않고 전체를 보류한다 — 한쪽만 숨기고 승인하면
+  // 전후 비교 자체가 성립하지 않기 때문.
+  const beforeAfterPhotos = input.photos.filter((p) => p.declared_category === 'BEFORE_AFTER');
+  const isBeforeAfterPair =
+    !input.procedure?.is_before_after_exempt &&
+    beforeAfterPhotos.some((p) => p.before_after_slot === 'BEFORE') &&
+    beforeAfterPhotos.some((p) => p.before_after_slot === 'AFTER');
+  const beforeAfterPairBroken = isBeforeAfterPair && (approvedBeforeCount === 0 || approvedAfterCount === 0);
+
   const matched_rules: string[] = [];
   if (contentHold) matched_rules.push('ai-content-irrelevant-or-meaningless');
+  if (contentProfanity) matched_rules.push('ai-content-profanity');
   if (contentNeedsReview) matched_rules.push('ai-content-public-order');
   if (hasPublicOrderPhoto) matched_rules.push('ai-photo-public-order');
   if (noApprovedPhotoRemaining) matched_rules.push('no-approved-photo-remaining');
+  if (beforeAfterPairBroken) matched_rules.push('before-after-pair-incomplete');
 
   let mock_judgment: JudgmentResult['mock_judgment'];
   if (contentNeedsReview || hasPublicOrderPhoto) {
     mock_judgment = 'NEEDS_REVIEW';
-  } else if (contentHold || noApprovedPhotoRemaining) {
+  } else if (contentHold || contentProfanity || noApprovedPhotoRemaining || beforeAfterPairBroken) {
     mock_judgment = 'AUTO_HOLD_CANDIDATE';
   } else {
     mock_judgment = 'APPROVE_CANDIDATE';

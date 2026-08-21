@@ -73,7 +73,7 @@ export interface AiPhotoJudgment {
 
 export interface AiContentJudgment {
   content_relevant: boolean;
-  content_flag: 'meaningless' | 'public_order' | null;
+  content_flag: 'meaningless' | 'public_order' | 'profanity' | null;
   photos: AiPhotoJudgment[];
   confidence: number;
   reasoning: string;

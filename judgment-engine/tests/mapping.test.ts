@@ -21,6 +21,17 @@ function inputWithPhotos(urls: string[]): ReviewInput {
   };
 }
 
+function inputWithBeforeAfterPhotos(
+  photos: Array<{ url: string; slot: 'BEFORE' | 'AFTER' }>,
+  isExempt = false
+): ReviewInput {
+  return {
+    ...inputWithPhotos([]),
+    photos: photos.map((p) => ({ url: p.url, declared_category: 'BEFORE_AFTER' as const, before_after_slot: p.slot })),
+    procedure: { is_before_after_exempt: isExempt },
+  };
+}
+
 describe('buildResultFromAi', () => {
   it('모든 사진과 텍스트가 문제없으면 APPROVE_CANDIDATE', () => {
     const input = inputWithPhotos(['https://x/1.jpg']);
@@ -228,6 +239,116 @@ describe('buildResultFromAi', () => {
       { url: 'https://x/1.jpg', decision: 'APPROVED' },
       { url: 'https://x/2.jpg', decision: 'HIDDEN', reason: 'irrelevant' },
     ]);
+  });
+
+  it('전/후 각 1장씩만 등록된 후기는 한쪽이 거부되면 남은 한쪽만으로 승인하지 않고 AUTO_HOLD_CANDIDATE', () => {
+    const input = inputWithBeforeAfterPhotos([
+      { url: 'https://x/before.jpg', slot: 'BEFORE' },
+      { url: 'https://x/after.jpg', slot: 'AFTER' },
+    ]);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: 'https://x/before.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        { url: 'https://x/after.jpg', relevant: false, identifiable: true, flag: 'irrelevant', confidence: 0.8 },
+      ],
+      confidence: 0.9,
+      reasoning: '후 사진이 시술과 무관',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('AUTO_HOLD_CANDIDATE');
+    expect(result.matched_rules).toContain('before-after-pair-incomplete');
+    expect(result.photo_results).toEqual([
+      { url: 'https://x/before.jpg', decision: 'APPROVED' },
+      { url: 'https://x/after.jpg', decision: 'HIDDEN', reason: 'irrelevant' },
+    ]);
+  });
+
+  it('전/후 각 1장씩 모두 승인되면 APPROVE_CANDIDATE', () => {
+    const input = inputWithBeforeAfterPhotos([
+      { url: 'https://x/before.jpg', slot: 'BEFORE' },
+      { url: 'https://x/after.jpg', slot: 'AFTER' },
+    ]);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: 'https://x/before.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        { url: 'https://x/after.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+      ],
+      confidence: 0.9,
+      reasoning: '전후 비교 정상',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('APPROVE_CANDIDATE');
+    expect(result.matched_rules).not.toContain('before-after-pair-incomplete');
+  });
+
+  it('전/후 각 2장씩 등록된 후기는 한쪽에 1장이라도 승인 사진이 남으면 나머지만 숨기고 승인', () => {
+    const input = inputWithBeforeAfterPhotos([
+      { url: 'https://x/before1.jpg', slot: 'BEFORE' },
+      { url: 'https://x/before2.jpg', slot: 'BEFORE' },
+      { url: 'https://x/after1.jpg', slot: 'AFTER' },
+      { url: 'https://x/after2.jpg', slot: 'AFTER' },
+    ]);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: 'https://x/before1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        { url: 'https://x/before2.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        { url: 'https://x/after1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        { url: 'https://x/after2.jpg', relevant: false, identifiable: true, flag: 'irrelevant', confidence: 0.8 },
+      ],
+      confidence: 0.9,
+      reasoning: 'after2만 시술과 무관',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('APPROVE_CANDIDATE');
+    expect(result.matched_rules).not.toContain('before-after-pair-incomplete');
+    expect(result.photo_results.find((p) => p.url === 'https://x/after2.jpg')).toEqual({
+      url: 'https://x/after2.jpg',
+      decision: 'HIDDEN',
+      reason: 'irrelevant',
+    });
+  });
+
+  it('예외 시술(전후 촬영 불가)은 전/후 슬롯이 등록돼 있어도 한쪽만 승인되면 그대로 승인', () => {
+    const input = inputWithBeforeAfterPhotos(
+      [
+        { url: 'https://x/before.jpg', slot: 'BEFORE' },
+        { url: 'https://x/after.jpg', slot: 'AFTER' },
+      ],
+      true
+    );
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: 'https://x/before.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        { url: 'https://x/after.jpg', relevant: false, identifiable: true, flag: 'irrelevant', confidence: 0.8 },
+      ],
+      confidence: 0.9,
+      reasoning: '예외 시술이라 전후 비교 요건 미적용, after는 시술과 무관해 숨김',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('APPROVE_CANDIDATE');
+    expect(result.matched_rules).not.toContain('before-after-pair-incomplete');
+  });
+
+  it('텍스트가 욕설/비속어(profanity)로 확인되면 AUTO_HOLD_CANDIDATE', () => {
+    const input = inputWithPhotos(['https://x/1.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: 'profanity',
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: '욕설/비속어 확인됨',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('AUTO_HOLD_CANDIDATE');
+    expect(result.matched_rules).toContain('ai-content-profanity');
   });
 
   it('사진은 승인 가능해도 텍스트가 의미불명(meaningless)이면 AUTO_HOLD_CANDIDATE', () => {
