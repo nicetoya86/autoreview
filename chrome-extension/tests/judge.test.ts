@@ -18,6 +18,7 @@ import { judgeReview } from 'judgment-engine';
 
 const emptyDuplicateFlags = {
   same_customer: false,
+  same_hospital_name: false,
   same_written_at: false,
   same_procedure_event: false,
   same_content: false,

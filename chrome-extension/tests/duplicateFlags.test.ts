@@ -8,6 +8,7 @@ function row(overrides: Partial<ListRowData>): ListRowData {
     review_type: 'TICKET_USE',
     content_text: '만족스러웠어요',
     photos: [{ url: 'https://x/1.jpg', declared_category: 'GENERAL' }],
+    hospital_name: '루비의원',
     review_status: '대기',
     modified_at: '2026-07-20',
     author: '홍**',
@@ -16,11 +17,12 @@ function row(overrides: Partial<ListRowData>): ListRowData {
 }
 
 describe('computeListDuplicateFlags', () => {
-  it('작성자+내용+사진이 모두 같은 다른 행이 있으면 중복 플래그를 true로 채운다', () => {
+  it('작성자+병원명+내용+사진이 모두 같은 다른 행이 있으면 중복 플래그를 true로 채운다', () => {
     const target = row({ review_id: 'r1' });
     const other = row({ review_id: 'r2' });
     const flags = computeListDuplicateFlags(target, [other]);
     expect(flags.same_customer).toBe(true);
+    expect(flags.same_hospital_name).toBe(true);
     expect(flags.same_content).toBe(true);
     expect(flags.same_photo).toBe(true);
   });
@@ -29,6 +31,14 @@ describe('computeListDuplicateFlags', () => {
     const target = row({ review_id: 'r1', author: '홍**' });
     const other = row({ review_id: 'r2', author: '김**' });
     const flags = computeListDuplicateFlags(target, [other]);
+    expect(flags.same_customer).toBe(false);
+  });
+
+  it('병원명이 다르면 나머지가 같아도 중복 아님', () => {
+    const target = row({ review_id: 'r1', hospital_name: '루비의원' });
+    const other = row({ review_id: 'r2', hospital_name: '여신의원' });
+    const flags = computeListDuplicateFlags(target, [other]);
+    expect(flags.same_hospital_name).toBe(false);
     expect(flags.same_customer).toBe(false);
   });
 

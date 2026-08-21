@@ -11,6 +11,7 @@ function baseInput(overrides: Partial<ReviewInput>): ReviewInput {
     procedure: { is_before_after_exempt: false },
     duplicate_flags: {
       same_customer: false,
+      same_hospital_name: false,
       same_written_at: false,
       same_procedure_event: false,
       same_content: false,
@@ -33,6 +34,7 @@ describe('runObjectiveRules', () => {
       baseInput({
         duplicate_flags: {
           same_customer: true,
+          same_hospital_name: true,
           same_written_at: true,
           same_procedure_event: true,
           same_content: true,

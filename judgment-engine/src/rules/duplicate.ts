@@ -10,20 +10,29 @@ export function isDuplicate(input: ReviewInput): boolean {
 
   switch (input.review_type) {
     case 'TICKET_USE':
-      return f.same_customer && f.same_written_at && f.same_procedure_event && f.same_content && f.same_photo;
+      return (
+        f.same_customer &&
+        f.same_hospital_name &&
+        f.same_written_at &&
+        f.same_procedure_event &&
+        f.same_content &&
+        f.same_photo
+      );
 
     case 'CONSULTATION': {
       const procedureEventOk = f.procedure_event_exists === false ? true : f.same_procedure_event;
-      return f.same_customer && f.same_written_at && procedureEventOk && f.same_content && f.same_photo;
+      return (
+        f.same_customer && f.same_hospital_name && f.same_written_at && procedureEventOk && f.same_content && f.same_photo
+      );
     }
 
     case 'ONSITE_APP_PAYMENT':
-      return f.same_customer && f.same_written_at && f.same_content && f.same_photo;
+      return f.same_customer && f.same_hospital_name && f.same_written_at && f.same_content && f.same_photo;
 
     case 'RECEIPT':
       return (
-        (f.same_customer && f.same_content && f.same_photo) ||
-        (f.same_customer && f.same_receipt)
+        (f.same_customer && f.same_hospital_name && f.same_content && f.same_photo) ||
+        (f.same_customer && f.same_hospital_name && f.same_receipt)
       );
 
     default:

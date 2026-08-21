@@ -46,6 +46,7 @@ function entry(reviewId: string, mock: CacheEntry['result']['mock_judgment']): C
     fingerprint: 'fp',
     duplicate_flags: {
       same_customer: false,
+      same_hospital_name: false,
       same_written_at: false,
       same_procedure_event: false,
       same_content: false,

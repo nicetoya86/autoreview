@@ -18,6 +18,7 @@ export interface ReceiptInfo {
 
 export interface DuplicateFlags {
   same_customer: boolean;
+  same_hospital_name: boolean;
   same_written_at: boolean;
   same_procedure_event: boolean;
   procedure_event_exists?: boolean; // CONSULTATION 유형에서만 사용 (§8.4 "시술이벤트가 있는 경우만")

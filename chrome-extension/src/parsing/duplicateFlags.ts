@@ -19,6 +19,8 @@ export function computeListDuplicateFlags(target: ListRowData, others: ListRowDa
     (o) =>
       o.author === target.author &&
       target.author !== '' &&
+      o.hospital_name === target.hospital_name &&
+      !!target.hospital_name &&
       o.content_text.trim() === target.content_text.trim() &&
       target.content_text.trim() !== '' &&
       samePhotoSet(o, target)
@@ -26,6 +28,7 @@ export function computeListDuplicateFlags(target: ListRowData, others: ListRowDa
 
   return {
     same_customer: !!duplicate,
+    same_hospital_name: !!duplicate,
     same_written_at: false,
     same_procedure_event: false,
     same_content: !!duplicate,

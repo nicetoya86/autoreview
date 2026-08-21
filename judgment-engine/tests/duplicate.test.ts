@@ -11,6 +11,7 @@ function baseInput(overrides: Partial<ReviewInput>): ReviewInput {
     procedure: { is_before_after_exempt: false },
     duplicate_flags: {
       same_customer: false,
+      same_hospital_name: false,
       same_written_at: false,
       same_procedure_event: false,
       same_content: false,
@@ -28,6 +29,7 @@ describe('isDuplicate', () => {
       review_type: 'TICKET_USE',
       duplicate_flags: {
         same_customer: true,
+        same_hospital_name: true,
         same_written_at: true,
         same_procedure_event: true,
         same_content: true,
@@ -43,8 +45,25 @@ describe('isDuplicate', () => {
       review_type: 'TICKET_USE',
       duplicate_flags: {
         same_customer: true,
+        same_hospital_name: true,
         same_written_at: true,
         same_procedure_event: false,
+        same_content: true,
+        same_photo: true,
+        same_receipt: false,
+      },
+    });
+    expect(isDuplicate(input)).toBe(false);
+  });
+
+  it('TICKET_USE: 병원명이 다르면 나머지가 모두 같아도 중복 아님', () => {
+    const input = baseInput({
+      review_type: 'TICKET_USE',
+      duplicate_flags: {
+        same_customer: true,
+        same_hospital_name: false,
+        same_written_at: true,
+        same_procedure_event: true,
         same_content: true,
         same_photo: true,
         same_receipt: false,
@@ -58,6 +77,7 @@ describe('isDuplicate', () => {
       review_type: 'CONSULTATION',
       duplicate_flags: {
         same_customer: true,
+        same_hospital_name: true,
         same_written_at: true,
         same_procedure_event: false,
         procedure_event_exists: false,
@@ -74,6 +94,7 @@ describe('isDuplicate', () => {
       review_type: 'ONSITE_APP_PAYMENT',
       duplicate_flags: {
         same_customer: true,
+        same_hospital_name: true,
         same_written_at: true,
         same_procedure_event: false,
         same_content: true,
@@ -89,6 +110,7 @@ describe('isDuplicate', () => {
       review_type: 'RECEIPT',
       duplicate_flags: {
         same_customer: true,
+        same_hospital_name: true,
         same_written_at: false,
         same_procedure_event: false,
         same_content: false,
@@ -104,6 +126,23 @@ describe('isDuplicate', () => {
       review_type: 'RECEIPT',
       duplicate_flags: {
         same_customer: false,
+        same_hospital_name: true,
+        same_written_at: false,
+        same_procedure_event: false,
+        same_content: false,
+        same_photo: false,
+        same_receipt: true,
+      },
+    });
+    expect(isDuplicate(input)).toBe(false);
+  });
+
+  it('RECEIPT: 병원명이 다르면 영수증이 같아도 중복 아님', () => {
+    const input = baseInput({
+      review_type: 'RECEIPT',
+      duplicate_flags: {
+        same_customer: true,
+        same_hospital_name: false,
         same_written_at: false,
         same_procedure_event: false,
         same_content: false,
@@ -119,6 +158,7 @@ describe('isDuplicate', () => {
       review_type: 'CONSULTATION',
       duplicate_flags: {
         same_customer: true,
+        same_hospital_name: true,
         same_written_at: true,
         same_procedure_event: false,
         procedure_event_exists: true,
