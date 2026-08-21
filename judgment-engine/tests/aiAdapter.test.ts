@@ -67,6 +67,42 @@ describe('judgeContentWithAi', () => {
     ).rejects.toThrow('invalid AI response shape');
   });
 
+  it('confidence가 0~1 범위를 벗어나면(예: 5) 에러를 던짐', async () => {
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 5,
+      reasoning: 'ok',
+    };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => fakeResponse,
+    } as unknown as Response);
+
+    await expect(
+      judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content' })
+    ).rejects.toThrow('invalid AI response shape');
+  });
+
+  it('photo의 confidence가 0~1 범위를 벗어나면 에러를 던짐', async () => {
+    const fakeResponse = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 5 }],
+      confidence: 0.9,
+      reasoning: 'ok',
+    };
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => fakeResponse,
+    } as unknown as Response);
+
+    await expect(
+      judgeContentWithAi(sampleInput, { proxyUrl: 'https://proxy.example/api/judge-content' })
+    ).rejects.toThrow('invalid AI response shape');
+  });
+
   it("photo flag가 'personal_info'면 정상 응답으로 파싱", async () => {
     const fakeResponse = {
       content_relevant: true,

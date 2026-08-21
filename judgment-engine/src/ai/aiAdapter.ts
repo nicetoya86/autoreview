@@ -84,6 +84,12 @@ async function attemptJudgeContentWithAi(
   }
 }
 
+// confidence는 "얼마나 확신하는지"를 나타내는 0~1 사이 값이어야 하는데,
+// 모델이 이 범위를 벗어난 값(예: 5)을 반환하는 사례가 실측에서 확인됐다.
+function isValidConfidence(n: number): boolean {
+  return n >= 0 && n <= 1;
+}
+
 function validateAiResponse(data: unknown): AiContentJudgment {
   const d = data as Partial<AiContentJudgment> | null;
   if (
@@ -91,6 +97,7 @@ function validateAiResponse(data: unknown): AiContentJudgment {
     typeof d.content_relevant !== 'boolean' ||
     !Array.isArray(d.photos) ||
     typeof d.confidence !== 'number' ||
+    !isValidConfidence(d.confidence) ||
     typeof d.reasoning !== 'string'
   ) {
     throw new Error('invalid AI response shape');
@@ -113,6 +120,7 @@ function validateAiResponse(data: unknown): AiContentJudgment {
       typeof photo.relevant !== 'boolean' ||
       typeof photo.identifiable !== 'boolean' ||
       typeof photo.confidence !== 'number' ||
+      !isValidConfidence(photo.confidence) ||
       (photo.flag !== 'unidentifiable' &&
         photo.flag !== 'public_order' &&
         photo.flag !== 'irrelevant' &&
