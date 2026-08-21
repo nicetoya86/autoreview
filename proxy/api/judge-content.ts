@@ -3,10 +3,13 @@ import { GoogleGenAI } from '@google/genai';
 import { buildPrompt } from '../src/prompt';
 import { guessMimeType } from '../src/mime';
 import { saveDebugCapture } from '../src/debugCapture';
+import { sendSlackAlert } from '../src/slackAlert';
 
 interface GeminiLike {
   models: {
-    generateContent: (params: Record<string, unknown>) => Promise<{ text?: string }>;
+    generateContent: (
+      params: Record<string, unknown>
+    ) => Promise<{ text?: string; promptFeedback?: { blockReason?: string } }>;
   };
 }
 
@@ -14,7 +17,7 @@ const JUDGMENT_SCHEMA = {
   type: 'object',
   properties: {
     content_relevant: { type: 'boolean' },
-    content_flag: { type: 'string', enum: ['meaningless', 'public_order'], nullable: true },
+    content_flag: { type: 'string', enum: ['meaningless', 'public_order', 'profanity'], nullable: true },
     photos: {
       type: 'array',
       items: {
@@ -37,11 +40,13 @@ const JUDGMENT_SCHEMA = {
 } as const;
 
 interface JudgeRequestBody {
+  review_id?: string;
   review_type: string;
   content_text: string;
   photos: Array<{ url: string; declared_category: string; before_after_slot?: 'BEFORE' | 'AFTER' }>;
   procedure?: { is_before_after_exempt: boolean };
   hospital_name?: string;
+  profanity_candidate?: boolean;
 }
 
 function isValidBody(body: unknown): body is JudgeRequestBody {
@@ -73,7 +78,7 @@ export function createHandler(client: GeminiLike) {
       return;
     }
 
-    const { review_type, content_text, photos, procedure, hospital_name } = req.body;
+    const { review_id, review_type, content_text, photos, procedure, hospital_name, profanity_candidate } = req.body;
 
     let photoBuffers: Buffer[];
     let imageParts: Array<{ inlineData: { data: string; mimeType: string } }>;
@@ -98,7 +103,10 @@ export function createHandler(client: GeminiLike) {
       contents: [
         {
           role: 'user',
-          parts: [{ text: buildPrompt(review_type, content_text, photos, procedure, hospital_name) }, ...imageParts],
+          parts: [
+            { text: buildPrompt(review_type, content_text, photos, procedure, hospital_name, profanity_candidate) },
+            ...imageParts,
+          ],
         },
       ],
       config: {
@@ -108,6 +116,22 @@ export function createHandler(client: GeminiLike) {
     });
 
     if (!response.text) {
+      // Gemini가 프롬프트 자체를 세이프티 정책으로 차단한 경우(예: 노출/신체 사진) —
+      // 재시도해도 항상 같은 결과이므로 일반 실패와 구분되는 코드를 반환해
+      // 클라이언트가 쓸모없는 재시도를 하지 않고 명확한 사유를 검수자에게 남기게 한다.
+      if (response.promptFeedback?.blockReason) {
+        await sendSlackAlert(
+          process.env.SLACK_WEBHOOK_URL,
+          [
+            ':rotating_light: 후기 검수 AI가 사진을 세이프티 정책으로 차단해 판단하지 못했습니다 — 수기 검수가 필요합니다.',
+            `후기번호: ${review_id ?? '알수없음'}`,
+            `병원명: ${hospital_name ?? '-'}`,
+            `차단 사유: ${response.promptFeedback.blockReason}`,
+          ].join('\n')
+        );
+        res.status(422).json({ error: 'blocked_by_safety_filter', block_reason: response.promptFeedback.blockReason });
+        return;
+      }
       res.status(502).json({ error: 'AI did not return structured judgment' });
       return;
     }
@@ -120,7 +144,7 @@ export function createHandler(client: GeminiLike) {
       return;
     }
 
-    await saveDebugCapture(undefined, review_type, content_text, photos, photoBuffers, parsed);
+    await saveDebugCapture(review_id, review_type, content_text, photos, photoBuffers, parsed);
     res.status(200).json(parsed);
   };
 }

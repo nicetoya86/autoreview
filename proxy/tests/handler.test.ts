@@ -106,6 +106,81 @@ describe('judge-content handler', () => {
     expect(res.status).toHaveBeenCalledWith(502);
   });
 
+  it('Gemini가 세이프티 정책으로 프롬프트를 차단하면(promptFeedback.blockReason) 422와 blocked_by_safety_filter를 반환', async () => {
+    const generateContent = vi.fn().mockResolvedValue({ text: '', promptFeedback: { blockReason: 'OTHER' } });
+    const handler = createHandler({ models: { generateContent } } as any);
+    const req: any = {
+      method: 'POST',
+      body: { review_type: 'TICKET_USE', content_text: 'ok', photos: [] },
+    };
+    const res = fakeRes();
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(res.json).toHaveBeenCalledWith({ error: 'blocked_by_safety_filter', block_reason: 'OTHER' });
+  });
+
+  describe('세이프티 정책 차단 시 Slack 알림', () => {
+    const originalWebhook = process.env.SLACK_WEBHOOK_URL;
+
+    afterEach(() => {
+      process.env.SLACK_WEBHOOK_URL = originalWebhook;
+    });
+
+    it('SLACK_WEBHOOK_URL이 설정돼 있으면 후기번호/병원명/차단사유를 담아 Slack으로 알림을 보낸다', async () => {
+      process.env.SLACK_WEBHOOK_URL = 'https://hooks.slack.com/services/xxx';
+      const generateContent = vi.fn().mockResolvedValue({ text: '', promptFeedback: { blockReason: 'OTHER' } });
+      const handler = createHandler({ models: { generateContent } } as any);
+      const req: any = {
+        method: 'POST',
+        body: {
+          review_id: '1158902',
+          review_type: 'TICKET_USE',
+          content_text: 'ok',
+          photos: [],
+          hospital_name: '루비의원',
+        },
+      };
+      const res = fakeRes();
+
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true } as any);
+
+      await handler(req, res);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://hooks.slack.com/services/xxx',
+        expect.objectContaining({ method: 'POST' })
+      );
+      const sentBody = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+      expect(sentBody.text).toContain('1158902');
+      expect(sentBody.text).toContain('루비의원');
+      expect(sentBody.text).toContain('OTHER');
+
+      fetchMock.mockRestore();
+    });
+
+    it('SLACK_WEBHOOK_URL이 없으면 Slack으로 보내지 않고도 정상적으로 422를 반환한다', async () => {
+      delete process.env.SLACK_WEBHOOK_URL;
+      const generateContent = vi.fn().mockResolvedValue({ text: '', promptFeedback: { blockReason: 'OTHER' } });
+      const handler = createHandler({ models: { generateContent } } as any);
+      const req: any = {
+        method: 'POST',
+        body: { review_type: 'TICKET_USE', content_text: 'ok', photos: [] },
+      };
+      const res = fakeRes();
+
+      const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+      await handler(req, res);
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(422);
+
+      fetchMock.mockRestore();
+    });
+  });
+
   it('Gemini 응답이 JSON으로 파싱되지 않으면 502', async () => {
     const generateContent = vi.fn().mockResolvedValue({ text: 'not json at all' });
     const handler = createHandler({ models: { generateContent } } as any);

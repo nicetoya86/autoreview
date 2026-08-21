@@ -79,6 +79,41 @@ describe('buildPrompt', () => {
     expect(prompt).not.toContain('hospital_name_match');
   });
 
+  it('병원명 대조 시 병원 유형 접미사 차이는 무시하고 핵심 브랜드명으로 판단하라는 기준을 포함한다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL], undefined, '루비의원');
+    expect(prompt).toContain('"루비의원"과 "루비클리닉"은 일치');
+    expect(prompt).toContain('"루비의원"과 "여신의원"은 불일치');
+  });
+
+  it('연예인/유명인 사진은 신체 일부가 나와도 보류하라는 기준을 포함한다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL]);
+    expect(prompt).toContain('연예인·인플루언서 등 널리 알려진 제3자 유명인');
+  });
+
+  it('사진 품질이 높다는 이유만으로는 보류하지 말라는 기준을 포함한다 (스튜디오컷도 실제 고객 사진일 수 있음)', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL]);
+    expect(prompt).toContain('촬영 품질이 높거나 스튜디오 촬영처럼 보인다는 이유만으로는 보류하지 마세요');
+  });
+
+  it('시술 부위 확인 목적의 노출은 승인하되 선정적으로 연출되거나 노출 수위가 과도하면 public_order로 보류하라는 기준을 포함한다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL]);
+    expect(prompt).toContain('시술 부위를 보여주기 위한 목적의 노출');
+    expect(prompt).toContain('그 자체만으로 미풍양속 위배가 아니며');
+    expect(prompt).toContain('성적으로 자극적인 포즈');
+    expect(prompt).toContain("flag를 'public_order'로 설정해 보류");
+  });
+
+  it('profanityCandidate가 true면 자동 필터 오탐 가능성을 알리고 재확인을 지시하는 문구를 포함한다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL], undefined, undefined, true);
+    expect(prompt).toContain('자동 필터가 이 후기 내용에 욕설/비속어로 의심되는 패턴이 있다고 표시했습니다');
+    expect(prompt).toContain('content_flag를 "profanity"로 설정');
+  });
+
+  it('profanityCandidate가 없으면 자동 필터 안내 문구를 포함하지 않는다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL]);
+    expect(prompt).not.toContain('자동 필터가 이 후기 내용에');
+  });
+
   it('승인/보류 기준 문구를 포함한다', () => {
     const prompt = buildPrompt('RECEIPT', 'text', [GENERAL]);
     expect(prompt).toContain('미풍양속');
