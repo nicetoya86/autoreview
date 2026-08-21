@@ -103,6 +103,19 @@ describe('buildPrompt', () => {
     expect(prompt).toContain("flag를 'public_order'로 설정해 보류");
   });
 
+  it('SNS 캡처/일상 사진이라도 신체 일부가 나오면 시술과 무관을 이유로 보류하지 말라는 기준을 포함한다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL]);
+    expect(prompt).toContain('SNS 게시물 캡처');
+    expect(prompt).toContain('신체 일부(손, 팔, 얼굴, 몸 등)가 하나라도 식별 가능하게 나온다면');
+    expect(prompt).toContain('보류하지 말고 신체 일부 사진으로 승인');
+  });
+
+  it('살구색이라는 이유만으로 피부로 단정하지 말고, 질감 없는 흐릿한 단색 면은 identifiable: false로 판단하라는 기준을 포함한다', () => {
+    const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL]);
+    expect(prompt).toContain('살구색/피부색 톤이라는 이유만으로 곧바로 "피부"라고 단정하지 마세요');
+    expect(prompt).toContain('identifiable: false로 판단하세요');
+  });
+
   it('profanityCandidate가 true면 자동 필터 오탐 가능성을 알리고 재확인을 지시하는 문구를 포함한다', () => {
     const prompt = buildPrompt('TICKET_USE', 'text', [GENERAL], undefined, undefined, true);
     expect(prompt).toContain('자동 필터가 이 후기 내용에 욕설/비속어로 의심되는 패턴이 있다고 표시했습니다');
