@@ -10,7 +10,9 @@ export interface ListRowData {
   content_text: string;
   photos: ReviewInput['photos'];
   hospital_name?: string;
+  event_info?: string;
   review_status: ReviewStatusLabel;
+  written_at: string;
   modified_at: string;
   author: string;
 }

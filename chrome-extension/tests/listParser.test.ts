@@ -44,8 +44,15 @@ describe('parseListPage', () => {
     expect(row1001.review_status).toBe('대기');
     expect(row1001.author).toBe('홍**');
     expect(row1001.content_text).toBe('시술 후 만족스러웠어요');
+    expect(row1001.written_at).toBe('2026-07-20 09:55');
     expect(row1001.modified_at).toBe('2026-07-20 10:00');
     expect(row1001.hospital_name).toBe('OO병원');
+  });
+
+  it('이벤트 정보를 라벨로 매핑하고, 빈 셀은 undefined로 둔다', () => {
+    const rows = parseListPage(table);
+    expect(rows.find((r) => r.review_id === '1001')!.event_info).toBe('[즉각 탄력] 온다리프팅 60KJ 1회');
+    expect(rows.find((r) => r.review_id === '1003')!.event_info).toBeUndefined();
   });
 
   it('사진이 없는 행도 스킵하지 않고 빈 배열로 파싱한다', () => {

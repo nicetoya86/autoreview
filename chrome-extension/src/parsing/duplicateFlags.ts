@@ -10,8 +10,8 @@ function samePhotoSet(a: ListRowData, b: ListRowData): boolean {
 
 /**
  * 현재 페이지에 로드된 행끼리만 비교하는 best-effort 중복 판정 (스펙 §3.1).
- * 작성일시/시술이벤트/영수증 일치 여부는 목록 화면만으로 신뢰성 있게 확인할 수 없어
- * 항상 false(미확인)로 둔다 — 전체 데이터셋 대조는 2차(서버) 범위(스펙 §7).
+ * 영수증 일치 여부는 목록 화면만으로 신뢰성 있게 확인할 수 없어 항상 false(미확인)로
+ * 둔다 — 전체 데이터셋 대조는 2차(서버) 범위(스펙 §7).
  */
 export function computeListDuplicateFlags(target: ListRowData, others: ListRowData[]): DuplicateFlags {
   const candidates = others.filter((o) => o.review_id !== target.review_id);
@@ -21,6 +21,9 @@ export function computeListDuplicateFlags(target: ListRowData, others: ListRowDa
       target.author !== '' &&
       o.hospital_name === target.hospital_name &&
       !!target.hospital_name &&
+      o.written_at === target.written_at &&
+      target.written_at !== '' &&
+      (o.event_info ?? '') === (target.event_info ?? '') &&
       o.content_text.trim() === target.content_text.trim() &&
       target.content_text.trim() !== '' &&
       samePhotoSet(o, target)
@@ -29,8 +32,9 @@ export function computeListDuplicateFlags(target: ListRowData, others: ListRowDa
   return {
     same_customer: !!duplicate,
     same_hospital_name: !!duplicate,
-    same_written_at: false,
-    same_procedure_event: false,
+    same_written_at: !!duplicate,
+    same_procedure_event: !!duplicate,
+    procedure_event_exists: !!target.event_info,
     same_content: !!duplicate,
     same_photo: !!duplicate,
     same_receipt: false,

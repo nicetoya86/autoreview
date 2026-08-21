@@ -9,6 +9,7 @@ describe('shared types', () => {
       content_text: '만족스러웠어요',
       photos: [{ url: 'https://x/1.jpg', declared_category: 'GENERAL' }],
       review_status: '대기',
+      written_at: '2026-07-20T00:00:00Z',
       modified_at: '2026-07-20T00:00:00Z',
       author: '홍**',
     };

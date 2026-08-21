@@ -38,6 +38,7 @@ describe('judgeListRow', () => {
       content_text: 'ok',
       photos: [{ url: 'https://x/1.jpg', declared_category: 'RECEIPT' }],
       review_status: '대기',
+      written_at: '2026-07-20',
       modified_at: '2026-07-20',
       author: '홍**',
     };
@@ -61,6 +62,7 @@ describe('judgeListRow', () => {
       content_text: 'ok',
       photos: [],
       review_status: '대기',
+      written_at: '2026-07-20',
       modified_at: '2026-07-20',
       author: '홍**',
     };
