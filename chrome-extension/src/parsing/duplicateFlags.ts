@@ -31,17 +31,23 @@ function nonPhotoFieldsMatch(a: ListRowData, b: ListRowData): boolean {
 /**
  * URL이 아니라 실제 이미지 바이트를 해시해 비교한다 — 같은 사진을 재업로드해도
  * CDN 파일명(URL)이 바뀌는 경우가 실측에서 확인돼(같은 사진, 다른 URL) URL 비교로는
- * 이런 재업로드 중복을 잡지 못했다. 해시를 못 구한 사진(fetch 실패 등)이 있으면
- * 보수적으로 다른 사진으로 취급한다.
+ * 이런 재업로드 중복을 잡지 못했다.
+ *
+ * 사진 전체 집합이 완전히 같아야만 중복으로 보던 이전 방식은, 실측에서 확인된
+ * "시술 전 사진은 그대로 재사용하고 시술 후 사진만 매번 다르게 바꿔 여러 건 등록"
+ * 하는 패턴을 놓쳤다(전 사진은 4건 모두 바이트까지 동일, 후 사진만 매번 다름).
+ * 그래서 두 후기의 사진 중 단 한 장이라도 바이트가 완전히 같으면 중복 사진으로
+ * 본다 — 구도/줌만 다른 별개 사진은 애초에 해시가 달라 여기 걸리지 않는다.
+ * 해시를 못 구한 사진(fetch 실패 등)은 비교에서 제외한다.
  */
-async function samePhotoSet(a: ListRowData, b: ListRowData): Promise<boolean> {
-  if (a.photos.length === 0 || b.photos.length === 0 || a.photos.length !== b.photos.length) return false;
+async function hasSharedPhoto(a: ListRowData, b: ListRowData): Promise<boolean> {
+  if (a.photos.length === 0 || b.photos.length === 0) return false;
   const [aHashes, bHashes] = await Promise.all([
     Promise.all(a.photos.map((p) => hashPhoto(p.url))),
     Promise.all(b.photos.map((p) => hashPhoto(p.url))),
   ]);
-  if (aHashes.some((h) => h === null) || bHashes.some((h) => h === null)) return false;
-  return aHashes.slice().sort().join(',') === bHashes.slice().sort().join(',');
+  const bHashSet = new Set(bHashes.filter((h): h is string => h !== null));
+  return aHashes.some((h) => h !== null && bHashSet.has(h));
 }
 
 /**
@@ -59,7 +65,7 @@ export async function computeListDuplicateFlags(target: ListRowData, others: Lis
 
   let duplicate: ListRowData | undefined;
   for (const candidate of earlierFieldCandidates) {
-    if (await samePhotoSet(candidate, target)) {
+    if (await hasSharedPhoto(candidate, target)) {
       duplicate = candidate;
       break;
     }

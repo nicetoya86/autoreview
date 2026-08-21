@@ -81,6 +81,30 @@ describe('computeListDuplicateFlags', () => {
     expect(flags.same_customer).toBe(false);
   });
 
+  it('사진 두 장 중 한 장만 바이트까지 같아도(전 사진 재사용, 후 사진만 다름) 중복으로 본다', async () => {
+    mockPhotoContents({
+      'https://x/before-shared.jpg': 'before-bytes',
+      'https://x/after-1.jpg': 'after-bytes-1',
+      'https://x/after-2.jpg': 'after-bytes-2',
+    });
+    const earlier = row({
+      review_id: '1001',
+      photos: [
+        { url: 'https://x/before-shared.jpg', declared_category: 'BEFORE_AFTER', before_after_slot: 'BEFORE' },
+        { url: 'https://x/after-1.jpg', declared_category: 'BEFORE_AFTER', before_after_slot: 'AFTER' },
+      ],
+    });
+    const target = row({
+      review_id: '1002',
+      photos: [
+        { url: 'https://x/before-shared.jpg', declared_category: 'BEFORE_AFTER', before_after_slot: 'BEFORE' },
+        { url: 'https://x/after-2.jpg', declared_category: 'BEFORE_AFTER', before_after_slot: 'AFTER' },
+      ],
+    });
+    const flags = await computeListDuplicateFlags(target, [earlier]);
+    expect(flags.same_photo).toBe(true);
+  });
+
   it('사진 fetch가 실패하면 보수적으로 다른 사진으로 취급한다', async () => {
     const earlier = row({ review_id: '1001', photos: [{ url: 'https://x/fail-a.jpg', declared_category: 'GENERAL' }] });
     const target = row({ review_id: '1002', photos: [{ url: 'https://x/fail-b.jpg', declared_category: 'GENERAL' }] });
