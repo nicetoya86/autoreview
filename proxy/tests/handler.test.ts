@@ -68,7 +68,10 @@ describe('judge-content handler', () => {
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(judgment);
+    expect(res.json).toHaveBeenCalledWith({
+      ...judgment,
+      photos: [{ ...judgment.photos[0], low_resolution: false }],
+    });
 
     fetchMock.mockRestore();
   });

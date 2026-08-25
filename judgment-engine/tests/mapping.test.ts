@@ -352,6 +352,76 @@ describe('buildResultFromAi', () => {
     expect(result.matched_rules).toContain('ai-content-profanity');
   });
 
+  it('body_part_visible이 true면 relevant/flag가 irrelevant여도 승인 (신체 일부 우선 규칙)', () => {
+    const input = inputWithPhotos(['https://x/1.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        {
+          url: 'https://x/1.jpg',
+          relevant: false,
+          identifiable: true,
+          flag: 'irrelevant',
+          confidence: 0.9,
+          body_part_visible: true,
+        },
+      ],
+      confidence: 0.9,
+      reasoning: '커피잔을 든 손이 나온 일상 사진이지만 신체 일부가 식별됨',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('APPROVE_CANDIDATE');
+    expect(result.photo_results).toEqual([{ url: 'https://x/1.jpg', decision: 'APPROVED' }]);
+  });
+
+  it('body_part_visible이 true여도 public_order 플래그면 보류 (신체 일부 우선 규칙보다 우선)', () => {
+    const input = inputWithPhotos(['https://x/1.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        {
+          url: 'https://x/1.jpg',
+          relevant: true,
+          identifiable: true,
+          flag: 'public_order',
+          confidence: 0.9,
+          body_part_visible: true,
+        },
+      ],
+      confidence: 0.9,
+      reasoning: '선정적으로 연출된 노출 사진',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('NEEDS_REVIEW');
+    expect(result.photo_results).toEqual([{ url: 'https://x/1.jpg', decision: 'HIDDEN', reason: 'public_order' }]);
+  });
+
+  it('low_resolution이 true면 relevant/identifiable이 true여도 보류', () => {
+    const input = inputWithPhotos(['https://x/1.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        {
+          url: 'https://x/1.jpg',
+          relevant: true,
+          identifiable: true,
+          flag: null,
+          confidence: 0.9,
+          body_part_visible: true,
+          low_resolution: true,
+        },
+      ],
+      confidence: 0.9,
+      reasoning: '신체 일부로 보이지만 해상도가 너무 낮음',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('AUTO_HOLD_CANDIDATE');
+    expect(result.photo_results).toEqual([{ url: 'https://x/1.jpg', decision: 'HIDDEN', reason: 'low_resolution' }]);
+  });
+
   it('사진은 승인 가능해도 텍스트가 의미불명(meaningless)이면 AUTO_HOLD_CANDIDATE', () => {
     const input = inputWithPhotos(['https://x/1.jpg']);
     const ai: AiContentJudgment = {

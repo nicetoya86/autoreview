@@ -4,6 +4,11 @@ import { buildPrompt } from '../src/prompt';
 import { guessMimeType } from '../src/mime';
 import { saveDebugCapture } from '../src/debugCapture';
 import { sendSlackAlert } from '../src/slackAlert';
+import { getImageDimensions } from '../src/imageDimensions';
+
+// ponytail: 관찰된 저해상도 사진(146x129≈19K, 513x560≈287K)과 정상 사진(3000x4000=12M) 사이의
+// 임의 경계값. 오탐(정상 저용량 사진을 보류)이 생기면 조정한다.
+const MIN_PHOTO_PIXELS = 500_000;
 
 interface GeminiLike {
   models: {
@@ -27,13 +32,14 @@ const JUDGMENT_SCHEMA = {
           relevant: { type: 'boolean' },
           identifiable: { type: 'boolean' },
           flag: { type: 'string', enum: ['unidentifiable', 'public_order', 'irrelevant', 'personal_info'], nullable: true },
-          confidence: { type: 'number' },
+          confidence: { type: 'number', minimum: 0, maximum: 1 },
           hospital_name_match: { type: 'boolean', nullable: true },
+          body_part_visible: { type: 'boolean' },
         },
-        required: ['url', 'relevant', 'identifiable', 'flag', 'confidence', 'hospital_name_match'],
+        required: ['url', 'relevant', 'identifiable', 'flag', 'confidence', 'hospital_name_match', 'body_part_visible'],
       },
     },
-    confidence: { type: 'number' },
+    confidence: { type: 'number', minimum: 0, maximum: 1 },
     reasoning: { type: 'string' },
   },
   required: ['content_relevant', 'content_flag', 'photos', 'confidence', 'reasoning'],
@@ -142,6 +148,16 @@ export function createHandler(client: GeminiLike) {
     } catch {
       res.status(502).json({ error: 'AI did not return structured judgment' });
       return;
+    }
+
+    // 해상도는 AI의 주관적 판단이 아니라 실제 픽셀 크기로 결정한다 — AI가 "식별 가능"으로
+    // 판단해도 사진 자체가 저해상도면 검수자가 육안으로 확인하기 어렵기 때문.
+    const parsedPhotos = (parsed as { photos?: Array<Record<string, unknown>> } | null)?.photos;
+    if (Array.isArray(parsedPhotos)) {
+      parsedPhotos.forEach((p, i) => {
+        const dim = getImageDimensions(photoBuffers[i]);
+        p.low_resolution = !!dim && dim.width * dim.height < MIN_PHOTO_PIXELS;
+      });
     }
 
     await saveDebugCapture(review_id, review_type, content_text, photos, photoBuffers, parsed);

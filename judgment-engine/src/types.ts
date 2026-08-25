@@ -70,6 +70,13 @@ export interface AiPhotoJudgment {
   // 프롬프트 지시문만으로는 모델이 무시하는 경우가 있어(실측 확인), 이 필드로 강제하고
   // 최종 승인/보류는 mapping.ts에서 결정한다.
   hospital_name_match?: boolean | null;
+  // 사진 안에 신체 일부가 하나라도 식별 가능하게 나오는지 (AI 판단). true면 relevant/flag의
+  // 종합 판단과 무관하게 mapping.ts에서 승인으로 강제한다 — 동일 유형 사진(예: 손이 나온
+  // 일상 사진)에서도 relevant/flag 판단이 오락가락하는 사례가 실측에서 확인됨.
+  body_part_visible?: boolean;
+  // 실제 픽셀 크기가 임계값 미만인지 (AI가 아니라 proxy가 이미지 바이트로 계산해 채움).
+  // true면 identifiable 판단과 무관하게 보류한다.
+  low_resolution?: boolean;
 }
 
 export interface AiContentJudgment {

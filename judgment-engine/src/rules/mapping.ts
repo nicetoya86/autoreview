@@ -19,11 +19,18 @@ export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): Ju
     // 병원명이 다른 사진(hospital_name_match: false)은 relevant/flag와 무관하게 무조건 보류 —
     // 프롬프트 지시문만으로는 모델이 무시하는 경우가 실측에서 확인됐다.
     const hospitalMismatch = !!input.hospital_name && judged?.hospital_name_match === false;
-    if (!judged || hospitalMismatch || !judged.relevant || !judged.identifiable || judged.flag) {
+    // 실제 픽셀 크기가 임계값 미만이면(proxy가 계산) identifiable 판단과 무관하게 보류.
+    const lowResolution = judged?.low_resolution === true;
+    const sensitiveFlag = judged?.flag === 'public_order' || judged?.flag === 'personal_info';
+    // 신체 일부가 나온 사진은 "시술과 무관해 보인다"는 AI의 종합 판단(relevant/flag)과 무관하게
+    // 승인한다 — 프롬프트 지시만으로는 같은 유형의 사진(예: 손이 나온 일상 사진)에서도 판단이
+    // 오락가락하는 사례가 실측에서 확인되어, 결정성을 위해 이 규칙만 코드에서 강제한다.
+    const bodyPartOverride = judged?.body_part_visible === true && !sensitiveFlag && !hospitalMismatch && !lowResolution;
+    if (!judged || hospitalMismatch || lowResolution || (!bodyPartOverride && (!judged.relevant || !judged.identifiable || judged.flag))) {
       photo_results.push({
         url: photo.url,
         decision: 'HIDDEN',
-        reason: hospitalMismatch ? 'irrelevant' : (judged?.flag ?? 'irrelevant'),
+        reason: hospitalMismatch ? 'irrelevant' : lowResolution ? 'low_resolution' : (judged?.flag ?? 'irrelevant'),
       });
     } else {
       photo_results.push({ url: photo.url, decision: 'APPROVED' });

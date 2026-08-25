@@ -128,7 +128,9 @@ function validateAiResponse(data: unknown): AiContentJudgment {
         photo.flag !== null) ||
       (photo.hospital_name_match !== undefined &&
         photo.hospital_name_match !== null &&
-        typeof photo.hospital_name_match !== 'boolean')
+        typeof photo.hospital_name_match !== 'boolean') ||
+      (photo.body_part_visible !== undefined && typeof photo.body_part_visible !== 'boolean') ||
+      (photo.low_resolution !== undefined && typeof photo.low_resolution !== 'boolean')
     ) {
       throw new Error('invalid AI response shape');
     }
