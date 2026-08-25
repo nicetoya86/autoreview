@@ -68,10 +68,108 @@ describe('judge-content handler', () => {
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(judgment);
+
+    fetchMock.mockRestore();
+  });
+
+  it('일반 사진이 여러 장이면 한 장씩 순차적으로 호출하고 결과를 원래 순서로 합친다', async () => {
+    const generateContent = vi
+      .fn()
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          content_relevant: true,
+          content_flag: null,
+          photos: [{ url: '1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+          confidence: 0.9,
+          reasoning: 'photo1 ok',
+        }),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          content_relevant: true,
+          content_flag: null,
+          photos: [{ url: '2.jpg', relevant: false, identifiable: true, flag: 'irrelevant', confidence: 0.5 }],
+          confidence: 0.8,
+          reasoning: 'photo2 irrelevant',
+        }),
+      });
+    const handler = createHandler({ models: { generateContent } } as any);
+    const req: any = {
+      method: 'POST',
+      body: {
+        review_type: 'TICKET_USE',
+        content_text: 'ok',
+        photos: [
+          { url: 'https://x/1.jpg', declared_category: 'GENERAL' },
+          { url: 'https://x/2.jpg', declared_category: 'GENERAL' },
+        ],
+      },
+    };
+    const res = fakeRes();
+
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) } as any);
+
+    await handler(req, res);
+
+    expect(generateContent).toHaveBeenCalledTimes(2);
+    // 각 호출에는 이미지가 한 장씩만 담긴다 (parts = [text, 1 image]).
+    for (const call of generateContent.mock.calls) {
+      expect((call[0] as any).contents[0].parts).toHaveLength(2);
+    }
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      ...judgment,
-      photos: [{ ...judgment.photos[0], low_resolution: false }],
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: '1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        { url: '2.jpg', relevant: false, identifiable: true, flag: 'irrelevant', confidence: 0.5 },
+      ],
+      confidence: 0.8,
+      reasoning: '[1] photo1 ok\n[2] photo2 irrelevant',
     });
+
+    fetchMock.mockRestore();
+  });
+
+  it('시술 전/후 사진은 등록 순서로 짝지어(전[i]+후[i]) 한 번에 호출한다', async () => {
+    const generateContent = vi.fn().mockResolvedValue({
+      text: JSON.stringify({
+        content_relevant: true,
+        content_flag: null,
+        photos: [
+          { url: 'before.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+          { url: 'after.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        ],
+        confidence: 0.9,
+        reasoning: 'pair ok',
+      }),
+    });
+    const handler = createHandler({ models: { generateContent } } as any);
+    const req: any = {
+      method: 'POST',
+      body: {
+        review_type: 'TICKET_USE',
+        content_text: 'ok',
+        photos: [
+          { url: 'https://x/before.jpg', declared_category: 'BEFORE_AFTER', before_after_slot: 'BEFORE' },
+          { url: 'https://x/after.jpg', declared_category: 'BEFORE_AFTER', before_after_slot: 'AFTER' },
+        ],
+      },
+    };
+    const res = fakeRes();
+
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) } as any);
+
+    await handler(req, res);
+
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    expect((generateContent.mock.calls[0][0] as any).contents[0].parts).toHaveLength(3); // text + 전 + 후
+    expect(res.status).toHaveBeenCalledWith(200);
 
     fetchMock.mockRestore();
   });

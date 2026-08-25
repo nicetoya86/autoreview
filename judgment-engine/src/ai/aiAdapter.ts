@@ -46,8 +46,11 @@ async function attemptJudgeContentWithAi(
   },
   config: AiAdapterConfig
 ): Promise<AiContentJudgment> {
+  // proxy가 사진을 한 장(또는 전/후 짝)씩 순차적으로 여러 번 Gemini에 호출하므로,
+  // 사진이 많은 후기(최대 15장)는 총 처리 시간이 그만큼 늘어난다 — 고정 15초로는
+  // 사진이 몇 장만 넘어가도 proxy가 끝나기 전에 클라이언트가 먼저 포기하게 된다.
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs ?? 15000);
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs ?? Math.max(15000, input.photos.length * 10000));
 
   try {
     const res = await fetch(config.proxyUrl, {
@@ -129,8 +132,7 @@ function validateAiResponse(data: unknown): AiContentJudgment {
       (photo.hospital_name_match !== undefined &&
         photo.hospital_name_match !== null &&
         typeof photo.hospital_name_match !== 'boolean') ||
-      (photo.body_part_visible !== undefined && typeof photo.body_part_visible !== 'boolean') ||
-      (photo.low_resolution !== undefined && typeof photo.low_resolution !== 'boolean')
+      (photo.body_part_visible !== undefined && typeof photo.body_part_visible !== 'boolean')
     ) {
       throw new Error('invalid AI response shape');
     }

@@ -73,31 +73,40 @@ async function hasSharedPhoto(a: ListRowData, b: ListRowData): Promise<boolean> 
  * 현재 페이지에 로드된 행끼리만 비교하는 best-effort 중복 판정 (스펙 §3.1).
  * 영수증 일치 여부는 목록 화면만으로 신뢰성 있게 확인할 수 없어 항상 false(미확인)로
  * 둔다 — 전체 데이터셋 대조는 2차(서버) 범위(스펙 §7).
+ *
+ * 동일 고객/병원/작성일/이벤트/내용(nonPhotoFieldsMatch)이 일치하는 후기는 3건 이상
+ * 연속 재제출될 수 있다(실측: 1분 간격 3연속). 이전 방식은 target과 "그보다 이른
+ * 후보" 사이에 사진이 겹치는지만 pairwise로 봤는데, 재제출 체인 중간 항목이 정작
+ * 그룹의 맨 처음 항목과는 사진이 달라(각자 다른 사진 한 장씩 첨부, 마지막 두 건만
+ * 우연히 같은 사진 재사용) 매칭에서 빠지는 사례가 나왔다 — 가운데 항목이 잘못
+ * 승인됨. 그래서 그룹(target + 필드 일치하는 전체 후보) 안에 사진이 겹치는 쌍이
+ * "어디든 하나라도" 있으면 그 그룹 전체를 진짜 재제출 체인으로 확정하고,
+ * 그룹에서 가장 이른(review_id가 가장 작은) 후기만 승인 유지, 나머지는 전부
+ * 중복으로 본다. 그룹 안에 사진이 겹치는 쌍이 전혀 없으면(우연히 같은 날 같은
+ * 이벤트를 쓴 별개 방문일 수 있음) 중복으로 보지 않는다 — 기존 동작 유지.
  */
 export async function computeListDuplicateFlags(target: ListRowData, others: ListRowData[]): Promise<DuplicateFlags> {
-  // 사진 해시 비교는 fetch가 필요해 비싸므로, 다른 필드가 전부 같은 후보로 먼저 좁힌 뒤에만 수행한다.
-  // 나(target)보다 나중에 등록된 후보는 "원본" 자격이 없어 여기서는 볼 필요가 없다 —
-  // 그 후보 자신이 판정될 때 나를 원본으로 찾아 스스로 보류 처리된다.
-  const earlierFieldCandidates = others.filter(
-    (o) => o.review_id !== target.review_id && nonPhotoFieldsMatch(o, target) && isEarlier(o.review_id, target.review_id)
-  );
+  const fieldMatches = others.filter((o) => o.review_id !== target.review_id && nonPhotoFieldsMatch(o, target));
+  const group = [target, ...fieldMatches];
 
-  let duplicate: ListRowData | undefined;
-  for (const candidate of earlierFieldCandidates) {
-    if (await hasSharedPhoto(candidate, target)) {
-      duplicate = candidate;
-      break;
+  let hasPhotoEvidence = false;
+  for (let i = 0; !hasPhotoEvidence && i < group.length; i++) {
+    for (let j = i + 1; !hasPhotoEvidence && j < group.length; j++) {
+      if (await hasSharedPhoto(group[i], group[j])) hasPhotoEvidence = true;
     }
   }
 
+  const earliestId = group.reduce((min, r) => (isEarlier(r.review_id, min) ? r.review_id : min), group[0].review_id);
+  const isDuplicate = hasPhotoEvidence && earliestId !== target.review_id;
+
   return {
-    same_customer: !!duplicate,
-    same_hospital_name: !!duplicate,
-    same_written_at: !!duplicate,
-    same_procedure_event: !!duplicate,
+    same_customer: isDuplicate,
+    same_hospital_name: isDuplicate,
+    same_written_at: isDuplicate,
+    same_procedure_event: isDuplicate,
     procedure_event_exists: !!target.event_info,
-    same_content: !!duplicate,
-    same_photo: !!duplicate,
+    same_content: isDuplicate,
+    same_photo: isDuplicate,
     same_receipt: false,
   };
 }

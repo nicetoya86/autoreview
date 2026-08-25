@@ -74,9 +74,6 @@ export interface AiPhotoJudgment {
   // 종합 판단과 무관하게 mapping.ts에서 승인으로 강제한다 — 동일 유형 사진(예: 손이 나온
   // 일상 사진)에서도 relevant/flag 판단이 오락가락하는 사례가 실측에서 확인됨.
   body_part_visible?: boolean;
-  // 실제 픽셀 크기가 임계값 미만인지 (AI가 아니라 proxy가 이미지 바이트로 계산해 채움).
-  // true면 identifiable 판단과 무관하게 보류한다.
-  low_resolution?: boolean;
 }
 
 export interface AiContentJudgment {
