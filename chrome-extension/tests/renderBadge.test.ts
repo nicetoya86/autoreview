@@ -26,6 +26,7 @@ function entry(overrides: Partial<CacheEntry['result']> = {}): CacheEntry {
       reasoning: '근거 요약',
       ai_invoked: true,
       photo_results: [],
+      photo_notices: [],
       ...overrides,
     },
     checked_at: '2026-07-20T00:00:00Z',

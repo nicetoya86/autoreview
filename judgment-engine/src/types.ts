@@ -58,6 +58,10 @@ export interface JudgmentResult {
   reasoning: string;
   ai_invoked: boolean;
   photo_results: PhotoResult[];
+  // 승인이어도 검수자가 놓치기 쉬운 예외 처리(사진 유형 변경, 일부 사진 숨김)를
+  // 짧은 고정 문구로 알려준다 (§8.6 승인 결과 부가 안내). mock_judgment이
+  // APPROVE_CANDIDATE가 아니면 항상 빈 배열.
+  photo_notices: string[];
 }
 
 export interface AiPhotoJudgment {

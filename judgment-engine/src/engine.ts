@@ -24,6 +24,7 @@ export async function judgeReview(input: ReviewInput, aiConfig: AiAdapterConfig)
         reasoning: objective.reasoning,
         ai_invoked: false,
         photo_results: input.photos.map((p) => ({ url: p.url, decision })),
+        photo_notices: [],
       };
     }
   } catch {
@@ -39,6 +40,7 @@ export async function judgeReview(input: ReviewInput, aiConfig: AiAdapterConfig)
       photo_results: Array.isArray(input?.photos)
         ? input.photos.map((p) => ({ url: p?.url, decision: 'HIDDEN', reason: 'objective-rules-error' }))
         : [],
+      photo_notices: [],
     };
   }
 
@@ -66,6 +68,7 @@ export async function judgeReview(input: ReviewInput, aiConfig: AiAdapterConfig)
       photo_results: Array.isArray(input?.photos)
         ? input.photos.map((p) => ({ url: p?.url, decision: 'HIDDEN', reason: blockedBySafety ? 'ai_safety_block' : 'ai_error' }))
         : [],
+      photo_notices: [],
     };
   }
 }

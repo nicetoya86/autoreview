@@ -22,7 +22,8 @@ export function renderBadge(rowEl: HTMLElement, entry: CacheEntry): void {
     const tooltip = rowEl.ownerDocument.createElement('div');
     tooltip.className = 'rvw-mock-tooltip';
     const reasoningPart = shouldShowReasoning(entry.result) ? ` / 상세 사유: ${entry.result.reasoning}` : '';
-    tooltip.textContent = `근거: ${entry.result.matched_rules.join(', ') || '없음'} / 신뢰도: ${entry.result.confidence}${reasoningPart}`;
+    const noticePart = entry.result.photo_notices.length ? ` / ${entry.result.photo_notices.join(' / ')}` : '';
+    tooltip.textContent = `근거: ${entry.result.matched_rules.join(', ') || '없음'} / 신뢰도: ${entry.result.confidence}${noticePart}${reasoningPart}`;
     rowEl.appendChild(tooltip);
   });
 

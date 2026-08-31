@@ -22,8 +22,9 @@ export function renderPanel(container: HTMLElement, entry: CacheEntry | null, ha
   if (entry) {
     const tierNote = entry.tier === 'list' ? ' (예비 판정 — 목록 기준)' : '';
     const reasoningPart = shouldShowReasoning(entry.result) ? ` / 상세 사유: ${entry.result.reasoning}` : '';
+    const noticePart = entry.result.photo_notices.length ? ` / ${entry.result.photo_notices.join(' / ')}` : '';
     const summary = container.ownerDocument.createElement('p');
-    summary.textContent = `${LABELS[entry.result.mock_judgment]}${tierNote} / 근거: ${entry.result.matched_rules.join(', ') || '없음'} / 신뢰도: ${entry.result.confidence}${reasoningPart}`;
+    summary.textContent = `${LABELS[entry.result.mock_judgment]}${tierNote} / 근거: ${entry.result.matched_rules.join(', ') || '없음'} / 신뢰도: ${entry.result.confidence}${noticePart}${reasoningPart}`;
     panel.appendChild(summary);
 
     const agree = container.ownerDocument.createElement('button');

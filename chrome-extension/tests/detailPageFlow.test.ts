@@ -46,7 +46,7 @@ describe('runDetailPageFlow', () => {
             same_photo: false,
             same_receipt: false,
           },
-          result: { review_id: '1001', mock_judgment: 'APPROVE_CANDIDATE', matched_rules: [], confidence: 1, reasoning: 'ok', ai_invoked: true, photo_results: [] },
+          result: { review_id: '1001', mock_judgment: 'APPROVE_CANDIDATE', matched_rules: [], confidence: 1, reasoning: 'ok', ai_invoked: true, photo_results: [], photo_notices: [] },
           checked_at: '2026-07-20T00:00:00Z',
         },
       };
@@ -74,7 +74,7 @@ describe('runDetailPageFlow', () => {
         same_photo: false,
         same_receipt: false,
       },
-      result: { review_id: '1001', mock_judgment: 'APPROVE_CANDIDATE' as const, matched_rules: [], confidence: 1, reasoning: 'ok', ai_invoked: true, photo_results: [] },
+      result: { review_id: '1001', mock_judgment: 'APPROVE_CANDIDATE' as const, matched_rules: [], confidence: 1, reasoning: 'ok', ai_invoked: true, photo_results: [], photo_notices: [] },
       checked_at: '2026-07-20T00:00:00Z',
     };
     const sendMessage = vi.fn(async (msg: any): Promise<ExtensionResponse> => {

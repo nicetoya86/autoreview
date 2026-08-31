@@ -27,6 +27,7 @@ function entry(tier: CacheEntry['tier'], resultOverrides: Partial<CacheEntry['re
       reasoning: '근거 요약',
       ai_invoked: true,
       photo_results: [],
+      photo_notices: [],
       ...resultOverrides,
     },
     checked_at: '2026-07-20T00:00:00Z',

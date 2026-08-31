@@ -11,6 +11,7 @@ vi.mock('judgment-engine', () => ({
     reasoning: 'mock',
     ai_invoked: false,
     photo_results: [],
+    photo_notices: [],
   })),
 }));
 

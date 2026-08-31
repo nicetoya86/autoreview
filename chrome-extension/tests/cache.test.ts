@@ -24,6 +24,7 @@ function fakeEntry(reviewId: string): CacheEntry {
       reasoning: 'ok',
       ai_invoked: false,
       photo_results: [],
+      photo_notices: [],
     },
     checked_at: '2026-07-20T00:00:00Z',
   };

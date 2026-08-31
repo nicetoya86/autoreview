@@ -5,6 +5,10 @@ import type { AiContentJudgment, JudgmentResult, PhotoResult, ReviewInput } from
  * 사진별 승인/숨김 결과로 합성한다. AI는 세부 항목만 판단하고,
  * 최종 분류 규칙은 여기(코드)에서 결정한다 (스펙 §5.1).
  */
+// proxy/src/prompt.ts가 '시술 전/후 → 일반 사진 재분류' 승인 시 이 문구를 reasoning에
+// 쓰도록 지시한다 — 여기서 감지해 승인 결과에 고정 문구로 노출한다.
+const TYPE_RECLASSIFIED_MARKER = '유형 변경 후 승인 가능';
+
 export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): JudgmentResult {
   const photo_results: PhotoResult[] = [];
   const photoConfidences: number[] = [];
@@ -81,6 +85,20 @@ export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): Ju
 
   const confidence = Math.min(ai.confidence, ...(photoConfidences.length ? photoConfidences : [1]));
 
+  // 승인 결과에만 붙이는 부가 안내 — 보류/검토필요는 reasoning으로 이미 사유가 드러난다.
+  const photo_notices: string[] = [];
+  if (mock_judgment === 'APPROVE_CANDIDATE') {
+    const hiddenPositions = photo_results
+      .map((p, i) => (p.decision === 'HIDDEN' ? i + 1 : null))
+      .filter((n): n is number => n !== null);
+    if (hiddenPositions.length > 0) {
+      photo_notices.push(`${hiddenPositions.map((n) => `${n}번째`).join(', ')} 사진 숨김 후 승인`);
+    }
+    if (ai.reasoning.includes(TYPE_RECLASSIFIED_MARKER)) {
+      photo_notices.push('사진 유형 변경 후 승인');
+    }
+  }
+
   return {
     review_id: input.review_id,
     mock_judgment,
@@ -89,5 +107,6 @@ export function buildResultFromAi(input: ReviewInput, ai: AiContentJudgment): Ju
     reasoning: ai.reasoning,
     ai_invoked: true,
     photo_results,
+    photo_notices,
   };
 }

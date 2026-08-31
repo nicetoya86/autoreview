@@ -29,6 +29,7 @@ describe('types', () => {
       reasoning: 'ok',
       ai_invoked: false,
       photo_results: [{ url: 'https://x/1.jpg', decision: 'APPROVED' }],
+      photo_notices: [],
     };
 
     expect(input.review_id).toBe('r1');

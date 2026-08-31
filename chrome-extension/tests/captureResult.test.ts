@@ -53,7 +53,7 @@ function entry(reviewId: string, mock: CacheEntry['result']['mock_judgment']): C
       same_photo: false,
       same_receipt: false,
     },
-    result: { review_id: reviewId, mock_judgment: mock, matched_rules: [], confidence: 1, reasoning: 'ok', ai_invoked: false, photo_results: [] },
+    result: { review_id: reviewId, mock_judgment: mock, matched_rules: [], confidence: 1, reasoning: 'ok', ai_invoked: false, photo_results: [], photo_notices: [] },
     checked_at: '2026-07-20T00:00:00Z',
   };
 }

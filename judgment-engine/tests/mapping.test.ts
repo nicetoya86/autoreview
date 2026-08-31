@@ -398,6 +398,65 @@ describe('buildResultFromAi', () => {
     expect(result.photo_results).toEqual([{ url: 'https://x/1.jpg', decision: 'HIDDEN', reason: 'public_order' }]);
   });
 
+  it('승인이고 일부 사진만 숨김이면 숨김 사진 번호를 photo_notices에 알려준다', () => {
+    const input = inputWithPhotos(['https://x/1.jpg', 'https://x/2.jpg', 'https://x/3.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [
+        { url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 },
+        { url: 'https://x/2.jpg', relevant: false, identifiable: true, flag: 'irrelevant', confidence: 0.9 },
+        { url: 'https://x/3.jpg', relevant: false, identifiable: true, flag: 'irrelevant', confidence: 0.9 },
+      ],
+      confidence: 0.9,
+      reasoning: 'photo2, photo3는 시술과 무관',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('APPROVE_CANDIDATE');
+    expect(result.photo_notices).toEqual(['2번째, 3번째 사진 숨김 후 승인']);
+  });
+
+  it('승인이고 숨김 사진이 없으면 photo_notices는 빈 배열', () => {
+    const input = inputWithPhotos(['https://x/1.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: 'ok',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.photo_notices).toEqual([]);
+  });
+
+  it('전/후 사진이 일반 사진으로 유형 변경돼 승인되면 photo_notices에 고정 문구를 알려준다', () => {
+    const input = inputWithBeforeAfterPhotos([{ url: 'https://x/before.jpg', slot: 'BEFORE' }]);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: null,
+      photos: [{ url: 'https://x/before.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: '전 사진만 등록돼 일반 사진으로 유형 변경 후 승인 가능',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('APPROVE_CANDIDATE');
+    expect(result.photo_notices).toEqual(['사진 유형 변경 후 승인']);
+  });
+
+  it('보류 결과에는 photo_notices를 채우지 않는다', () => {
+    const input = inputWithPhotos(['https://x/1.jpg']);
+    const ai: AiContentJudgment = {
+      content_relevant: true,
+      content_flag: 'meaningless',
+      photos: [{ url: 'https://x/1.jpg', relevant: true, identifiable: true, flag: null, confidence: 0.9 }],
+      confidence: 0.9,
+      reasoning: '후기 내용이 의미를 알 수 없음',
+    };
+    const result = buildResultFromAi(input, ai);
+    expect(result.mock_judgment).toBe('AUTO_HOLD_CANDIDATE');
+    expect(result.photo_notices).toEqual([]);
+  });
+
   it('사진은 승인 가능해도 텍스트가 의미불명(meaningless)이면 AUTO_HOLD_CANDIDATE', () => {
     const input = inputWithPhotos(['https://x/1.jpg']);
     const ai: AiContentJudgment = {
