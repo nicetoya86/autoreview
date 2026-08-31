@@ -75,28 +75,49 @@ async function hasSharedPhoto(a: ListRowData, b: ListRowData): Promise<boolean> 
  * 둔다 — 전체 데이터셋 대조는 2차(서버) 범위(스펙 §7).
  *
  * 동일 고객/병원/작성일/이벤트/내용(nonPhotoFieldsMatch)이 일치하는 후기는 3건 이상
- * 연속 재제출될 수 있다(실측: 1분 간격 3연속). 이전 방식은 target과 "그보다 이른
- * 후보" 사이에 사진이 겹치는지만 pairwise로 봤는데, 재제출 체인 중간 항목이 정작
- * 그룹의 맨 처음 항목과는 사진이 달라(각자 다른 사진 한 장씩 첨부, 마지막 두 건만
- * 우연히 같은 사진 재사용) 매칭에서 빠지는 사례가 나왔다 — 가운데 항목이 잘못
- * 승인됨. 그래서 그룹(target + 필드 일치하는 전체 후보) 안에 사진이 겹치는 쌍이
- * "어디든 하나라도" 있으면 그 그룹 전체를 진짜 재제출 체인으로 확정하고,
- * 그룹에서 가장 이른(review_id가 가장 작은) 후기만 승인 유지, 나머지는 전부
- * 중복으로 본다. 그룹 안에 사진이 겹치는 쌍이 전혀 없으면(우연히 같은 날 같은
- * 이벤트를 쓴 별개 방문일 수 있음) 중복으로 보지 않는다 — 기존 동작 유지.
+ * 연속 재제출될 수 있다(실측: 1분 간격 3연속). target과 "그보다 이른 후보" 사이의
+ * 직접 pairwise 매칭만 보던 이전 방식은, 재제출 체인 중간 항목이 그룹의 맨 처음
+ * 항목과는 사진이 달라 매칭에서 빠지는 사례를 놓쳤다.
+ *
+ * 반대로 "필드가 일치하는 그룹 안에 사진 겹치는 쌍이 어디든 하나라도 있으면 그룹
+ * 전체를 하나의 체인으로 본다"는 방식은 과했다 — 실측(854091/094 페어와 854095/097
+ * 페어)에서 필드는 4건 모두 완전히 같지만 사진은 두 페어로 완전히 갈리는 사례가
+ * 나왔다(페어 간 공유 사진 없음). 이걸 하나의 체인으로 묶으면 각 페어의 원본까지
+ * 통째로 보류돼버린다.
+ *
+ * 그래서 사진이 겹치는 쌍끼리를 간선으로 그래프를 만들고, target이 속한 연결
+ * 요소(다른 항목과 사진으로 사슬처럼 이어진 범위)만 하나의 재제출 체인으로 본다 —
+ * A-B가 겹치고 B-C가 겹치면 A-C가 직접 안 겹쳐도 셋 다 한 체인(전이적 연결),
+ * 하지만 사진으로 전혀 연결되지 않은 별개 쌍은 서로 다른 체인으로 분리된다.
+ * 연결 요소 안에서 가장 이른(review_id가 가장 작은) 후기만 승인 유지, 나머지는
+ * 중복으로 본다. target이 아무와도 사진이 안 겹치면(연결 요소 크기 1) 중복 아님.
  */
 export async function computeListDuplicateFlags(target: ListRowData, others: ListRowData[]): Promise<DuplicateFlags> {
   const fieldMatches = others.filter((o) => o.review_id !== target.review_id && nonPhotoFieldsMatch(o, target));
   const group = [target, ...fieldMatches];
 
-  let hasPhotoEvidence = false;
-  for (let i = 0; !hasPhotoEvidence && i < group.length; i++) {
-    for (let j = i + 1; !hasPhotoEvidence && j < group.length; j++) {
-      if (await hasSharedPhoto(group[i], group[j])) hasPhotoEvidence = true;
+  const edges: boolean[][] = group.map(() => group.map(() => false));
+  for (let i = 0; i < group.length; i++) {
+    for (let j = i + 1; j < group.length; j++) {
+      if (await hasSharedPhoto(group[i], group[j])) edges[i][j] = edges[j][i] = true;
     }
   }
 
-  const earliestId = group.reduce((min, r) => (isEarlier(r.review_id, min) ? r.review_id : min), group[0].review_id);
+  const visited = new Set<number>([0]);
+  const queue = [0];
+  while (queue.length) {
+    const cur = queue.shift() as number;
+    for (let k = 0; k < group.length; k++) {
+      if (edges[cur][k] && !visited.has(k)) {
+        visited.add(k);
+        queue.push(k);
+      }
+    }
+  }
+  const component = [...visited].map((i) => group[i]);
+
+  const hasPhotoEvidence = component.length > 1;
+  const earliestId = component.reduce((min, r) => (isEarlier(r.review_id, min) ? r.review_id : min), component[0].review_id);
   const isDuplicate = hasPhotoEvidence && earliestId !== target.review_id;
 
   return {

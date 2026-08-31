@@ -174,23 +174,50 @@ describe('computeListDuplicateFlags', () => {
     expect(flags.same_content).toBe(false);
   });
 
-  it('3건 이상 연속 재제출 체인 — 가운데 항목이 첫 항목과는 사진이 다르고 마지막 항목과만 사진이 같아도, 그룹 안에 사진 겹치는 쌍이 있으면 첫 건만 승인 유지하고 나머지 전부 중복으로 본다', async () => {
+  it('3건 이상 연속 재제출 체인 — A-B, B-C가 순서대로 사진이 겹치면(전이적 연결) 셋 다 한 체인으로 보고 가장 이른 건만 승인 유지', async () => {
     mockPhotoContents({
-      'https://x/first.jpg': 'first-bytes',
-      'https://x/second.jpg': 'shared-bytes',
-      'https://x/third.jpg': 'shared-bytes',
+      'https://x/first.jpg': 'shared-ab-bytes',
+      'https://x/second-a.jpg': 'shared-ab-bytes',
+      'https://x/second-b.jpg': 'shared-bc-bytes',
+      'https://x/third.jpg': 'shared-bc-bytes',
     });
     const first = row({ review_id: '1001', photos: [{ url: 'https://x/first.jpg', declared_category: 'GENERAL' }] });
-    const second = row({ review_id: '1002', photos: [{ url: 'https://x/second.jpg', declared_category: 'GENERAL' }] });
+    const second = row({
+      review_id: '1002',
+      photos: [
+        { url: 'https://x/second-a.jpg', declared_category: 'GENERAL' },
+        { url: 'https://x/second-b.jpg', declared_category: 'GENERAL' },
+      ],
+    });
     const third = row({ review_id: '1003', photos: [{ url: 'https://x/third.jpg', declared_category: 'GENERAL' }] });
 
     const firstFlags = await computeListDuplicateFlags(first, [second, third]);
     const secondFlags = await computeListDuplicateFlags(second, [first, third]);
     const thirdFlags = await computeListDuplicateFlags(third, [first, second]);
 
-    expect(firstFlags.same_customer).toBe(false); // 그룹의 최초 건 — 승인 유지
-    expect(secondFlags.same_customer).toBe(true); // 사진은 first와 다르지만, 그룹 안에 second-third 겹침이 있어 중복 확정
+    expect(firstFlags.same_customer).toBe(false); // 체인의 최초 건 — 승인 유지
+    expect(secondFlags.same_customer).toBe(true); // first와도, third와도 사진이 이어져 같은 체인
     expect(thirdFlags.same_customer).toBe(true);
+  });
+
+  it('필드는 그룹 전체가 같아도 사진으로 실제 연결된 쌍끼리만 별도 체인으로 나눈다 — 서로 사진이 안 겹치는 두 쌍이 섞여 있으면 각 쌍에서 이른 건만 승인 유지', async () => {
+    mockPhotoContents({
+      'https://x/pair-a-1.jpg': 'pair-a-bytes',
+      'https://x/pair-a-2.jpg': 'pair-a-bytes',
+      'https://x/pair-b-1.jpg': 'pair-b-bytes',
+      'https://x/pair-b-2.jpg': 'pair-b-bytes',
+    });
+    const pairAEarly = row({ review_id: '1001', photos: [{ url: 'https://x/pair-a-1.jpg', declared_category: 'GENERAL' }] });
+    const pairALate = row({ review_id: '1002', photos: [{ url: 'https://x/pair-a-2.jpg', declared_category: 'GENERAL' }] });
+    const pairBEarly = row({ review_id: '1003', photos: [{ url: 'https://x/pair-b-1.jpg', declared_category: 'GENERAL' }] });
+    const pairBLate = row({ review_id: '1004', photos: [{ url: 'https://x/pair-b-2.jpg', declared_category: 'GENERAL' }] });
+    const all = [pairAEarly, pairALate, pairBEarly, pairBLate];
+    const others = (target: ListRowData) => all.filter((r) => r !== target);
+
+    expect((await computeListDuplicateFlags(pairAEarly, others(pairAEarly))).same_customer).toBe(false); // pair A 원본
+    expect((await computeListDuplicateFlags(pairALate, others(pairALate))).same_customer).toBe(true);
+    expect((await computeListDuplicateFlags(pairBEarly, others(pairBEarly))).same_customer).toBe(false); // pair B 원본 — pair A와 무관하게 별도로 승인 유지
+    expect((await computeListDuplicateFlags(pairBLate, others(pairBLate))).same_customer).toBe(true);
   });
 
   it('필드는 같아도 그룹 전체에 사진이 겹치는 쌍이 하나도 없으면(별개 방문) 아무도 중복으로 보지 않는다', async () => {
